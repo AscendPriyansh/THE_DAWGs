@@ -37,6 +37,13 @@ from apps.judging.views import (
     api_judge_scores,
     api_organiser_progress,
 )
+from apps.results.views import (
+    results_page,
+    api_preview_results,
+    api_publish_results,
+    api_get_results,
+    results_csv_export,
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -99,4 +106,13 @@ urlpatterns = [
     path("api/v1/assignments/<uuid:pk>/review/submit/", api_submit_review, name="api_submit_review"),
     path("api/v1/events/<slug:slug>/judges/<uuid:judge_user_id>/scores/", api_judge_scores, name="api_judge_scores_rest"),
     path("api/v1/events/<slug:slug>/organiser/progress/", api_organiser_progress, name="api_organiser_progress"),
+
+    # Results & Leaderboard (M04)
+    path("results", results_page, name="results_no_slash"),
+    path("results/", results_page, name="results"),
+    path("events/<slug:slug>/results/", results_page, name="event_results"),
+    path("api/v1/events/<slug:slug>/results/preview/", api_preview_results, name="api_preview_results"),
+    path("api/v1/events/<slug:slug>/results/publish/", api_publish_results, name="api_publish_results"),
+    path("api/v1/events/<slug:slug>/results/", api_get_results, name="api_get_results"),
+    path("api/v1/events/<slug:slug>/exports/results.csv", results_csv_export, name="event_results_csv"),
 ]

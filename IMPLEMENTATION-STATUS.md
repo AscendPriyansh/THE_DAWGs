@@ -1,10 +1,10 @@
 # Implementation status
 
-Status: M03 milestone complete and verified against PostgreSQL.
+Status: M04 milestone complete and verified against PostgreSQL.
 
-- **Current authorised milestone**: M03 (Frozen weighted rubric, explicit track grants, conflict checks, judge workspace, private evaluation, peer-score confidentiality, organiser coverage dashboard).
+- **Current authorised milestone**: M04 (Scoring, independent normalisation checks, result preview/publication, CSV, core UX and adoption baseline).
 - **Current implementation location**: `src/backend/` (Django + DRF) and PostgreSQL 16.
-- **Startup URL**: `http://localhost:8000` (Gallery at `/projects`, Workspace at `/workspace`, Judge console at `/judging`, Organiser coverage at `/events/sample-hack-2026/judging/manage/`).
+- **Startup URL**: `http://localhost:8000` (Gallery at `/projects`, Workspace at `/workspace`, Judge console at `/judging`, Leaderboard at `/results`, Organiser coverage at `/events/sample-hack-2026/judging/manage/`).
 - **Claimed Tiers in .dogfood.toml**: `["T1"]` (Passing checker for T1 and T2).
 
 ## Completed Behaviour (M01)
@@ -191,6 +191,64 @@ Status: M03 milestone complete and verified against PostgreSQL.
      claimed T1, verified T1 T2
      ```
 
+## Completed Behaviour (M04)
+
+1. **Deterministic Scoring & Ridge Normalisation (`apps/judging/calculation.py`)**:
+   - Pure, deterministic mathematical solver for `RAW_WEIGHTED_V1` and `RIDGE_JUDGE_OFFSET_V1`.
+   - Weighted score calculation across rubric criteria: $x_{j,p} = \sum (w_c \cdot s_{j,p,c}) / \sum w_c$.
+   - Ridge judge offset model minimizing squared residuals with quadratic shrinkage penalty ($\lambda \sum b_j^2$, default $\lambda = 5.0$).
+   - Strict convexity guarantee and zero-division immunity: constant-scoring judges converge smoothly without error.
+   - Bipartite graph analysis detecting disconnected comparison components.
+   - Competition ranking (1, 1, 3) with tie resolution rounded to 6 decimal places.
+   - Unreviewed projects flagged with `NO_REVIEWS` and left unranked; partial coverage flagged with `FEWER_THAN_REQUIRED_REVIEWS`.
+   - Canonical SHA-256 digests generated for both input snapshot and output result rows.
+
+2. **Result Run Calculations & Previews (`apps/results/services.py`)**:
+   - Domain service `calculate_result_run` creating immutable `ResultRun` and `ResultRow` records.
+   - Private organiser calculation preview endpoint `/api/v1/events/<slug>/results/preview/` (returns 403 Forbidden to participants and anonymous users).
+
+3. **Official Publication & Data-Leak Prevention**:
+   - Formal publication service `publish_results` enforcing that the judging window has closed and the result run's data version matches `event.data_version`.
+   - Data leak prevention: public endpoint `/api/v1/events/<slug>/results/` strictly returns `404 Not Found` until results are formally published.
+   - On publication: creates immutable `Publication`, updates `event.active_publication_id`, freezes judging (`event.judging_frozen_at = now`), and records `AuditEvent(action="RESULTS_PUBLISHED")`.
+
+4. **Public Leaderboard & Sanitized CSV Export**:
+   - Web results page at `/results` and `/events/<slug>/results/` displaying medal badges (#1, #2, #3), project titles, teams, tracks, and official scores.
+   - Sanitized CSV exports at `/api/export.csv` and `/api/v1/events/<slug>/exports/results.csv` restricted to organisers, with spreadsheet formula injection protection (cells starting with `=`, `+`, `-`, `@`, `\t`, `\r` escaped with a leading `'`).
+
+5. **Release Documentation Deliverable**:
+   - Created canonical `JUDGING.md` detailing mathematical formulation, solver contracts, coordinate descent algorithm, convergence guarantees, and edge case defenses.
+
+## Commands Actually Executed Against the Application (M04)
+
+1. **M04 Migrations**:
+   - Command: `PYTHONPATH=src/backend .venv/bin/python src/backend/manage.py makemigrations results && PYTHONPATH=src/backend .venv/bin/python src/backend/manage.py migrate`
+   - Outcome: Created and applied `results.0001_initial` (`ResultRun`, `ResultRow`, `Publication`).
+
+2. **Automated Test Suite (pytest)**:
+   - Command: `PYTHONPATH=src/backend .venv/bin/pytest tests/ -v`
+   - Outcome: `32 passed in 110.26s` (covering models, duplicate constraints, fixture importer, session auth, participant workspace, optimistic locking 409 conflict, captain receipts, rubric freeze, track permissions, conflict checks, judge workspace, private evaluation, peer confidentiality, coverage dashboard, ridge solver mathematics, constant judge immunity, 1-review shrinkage, graph components, competition ties, calculation preview, no-leak protection, publication, and sanitized CSV exports).
+
+3. **Acceptance Checker Verification**:
+   - Command: `python3 tools/run.py .dogfood.toml`
+   - Outcome:
+     ```text
+     DOGFOOD 2026 acceptance report
+     portal: http://localhost:8000
+     claimed: T1
+     fixtures: fixtures.json
+
+     T1  gallery is public ................. PASS
+     T1  project from fixtures shown ....... PASS
+     T1  closed event refuses submissions .. PASS
+     T2  judge sees own scores ............. PASS
+     T2  judge cannot see peer scores ...... PASS
+     T2  participant blocked ............... PASS
+     T2  csv export works .................. PASS
+
+     claimed T1, verified T1 T2
+     ```
+
 ## Environment Limitations & Gaps
 
 1. **Docker / Rootless Podman**:
@@ -198,7 +256,8 @@ Status: M03 milestone complete and verified against PostgreSQL.
    - `podman-compose` is installed in `.venv`.
 2. **Browser Subagent Playwright Context**:
    - Upstream CDN 404 downloading Playwright linux driver in subagent; verified via integration tests and acceptance checker.
-3. **M03 Boundary**:
-   - Milestone M03 is complete. Next milestone in execution plan is M04 (Scoring, independent normalisation checks, result preview/publication, CSV, core UX and adoption baseline).
+3. **M04 Boundary**:
+   - Milestone M04 is complete. Next milestone in execution plan is M05 (Voting policies, identities/gates, stable random ballots and support/withdraw).
+
 
 

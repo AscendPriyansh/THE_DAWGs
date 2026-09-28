@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "apps.media_assets",
     "apps.submissions",
     "apps.judging",
+    "apps.results",
     "apps.audit",
     "apps.imports",
 ]

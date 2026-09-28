@@ -1,0 +1,113 @@
+{% extends "portal/base.html" %}
+
+{% block title %}{{ event.name }} — Overview{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-meta">
+      <span class="phase-pill {% if event.is_submission_open %}open{% else %}closed{% endif %}">
+        Phase: {{ phase }}
+      </span>
+      <span style="font-size: 0.85rem; color: var(--text-hero-muted);">
+        Event slug: <code style="font-family: var(--font-mono); color: #FFF;">{{ event.slug }}</code>
+      </span>
+    </div>
+    <h1 class="hero-title">{{ event.name }}</h1>
+    <p class="hero-tagline">{{ event.tagline }}</p>
+
+    <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+      <a href="/projects" class="btn btn-primary" style="background: #FFF; color: #0A0A0A;">
+        Browse Project Gallery ({{ projects_count }}) &rarr;
+      </a>
+      <a href="/projects/new" class="btn btn-secondary" style="background: transparent; color: #FFF; border-color: var(--border-dark);">
+        {% if is_open %}Submit Project{% else %}Submission Status{% endif %}
+      </a>
+    </div>
+
+    <div class="hero-stats-grid">
+      <div class="stat-item">
+        <span class="stat-label">Submissions</span>
+        <span class="stat-val">{{ projects_count }}</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Tracks</span>
+        <span class="stat-val">{{ tracks|length }}</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Submission Deadline</span>
+        <span class="stat-val" style="font-size: 1.15rem;">{{ event.submissions_closes_at|date:"M j, Y H:i" }} UTC</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Judging Window</span>
+        <span class="stat-val" style="font-size: 1.15rem;">{{ event.judging_opens_at|date:"M j" }} – {{ event.judging_closes_at|date:"M j" }}</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="main-content">
+  <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2.5rem;">
+    <div>
+      <div class="detail-container" style="padding: 2rem; margin-bottom: 2rem;">
+        <h2 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 1rem;">About the Event</h2>
+        <div class="markdown-body">
+          <p>{{ event.description_md|linebreaksbr }}</p>
+        </div>
+      </div>
+
+      <div class="detail-container" style="padding: 2rem;">
+        <h2 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 1.25rem;">Competition Tracks</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+          {% for track in tracks %}
+          <div style="border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem; background: var(--bg-surface-subtle);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <span class="track-badge">{{ track.slug }}</span>
+              <span style="font-size: 0.75rem; color: var(--text-subtle); font-family: var(--font-mono);">#0{{ forloop.counter }}</span>
+            </div>
+            <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.25rem;">{{ track.name }}</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">{{ track.description_md }}</p>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="detail-container" style="padding: 1.75rem; margin-bottom: 2rem;">
+        <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;">Timeline & Status</h3>
+        <div style="display: flex; flex-direction: column; gap: 1rem; font-size: 0.875rem;">
+          <div style="display: flex; justify-content: space-between; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);">
+            <span style="color: var(--text-muted);">Registration:</span>
+            <strong>{{ event.registration_opens_at|date:"M j" }} – {{ event.registration_closes_at|date:"M j" }}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);">
+            <span style="color: var(--text-muted);">Submissions:</span>
+            <strong>{{ event.submissions_opens_at|date:"M j" }} – {{ event.submissions_closes_at|date:"M j" }}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);">
+            <span style="color: var(--text-muted);">Judging:</span>
+            <strong>{{ event.judging_opens_at|date:"M j" }} – {{ event.judging_closes_at|date:"M j" }}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Current Phase:</span>
+            <span style="font-weight: 700; color: {% if is_open %}var(--accent-green){% else %}var(--accent-red){% endif %};">{{ phase }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-container" style="padding: 1.75rem;">
+        <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.75rem;">Rules & Requirements</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 1rem;">
+          {{ event.rules_md }}
+        </p>
+        <ul style="font-size: 0.85rem; color: var(--text-muted); padding-left: 1.25rem; line-height: 1.6;">
+          <li>Team size: {{ event.min_team_size }} to {{ event.max_team_size }} members</li>
+          <li>Each eligible project receives at least {{ event.required_reviews }} reviews</li>
+          <li>PostgreSQL-backed immutable revision snapshots</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

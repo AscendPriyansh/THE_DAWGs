@@ -1,0 +1,75 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Sign In — DOGFOOD Portal{% endblock %}
+
+{% block content %}
+<div class="main-content" style="max-width: 480px;">
+  <div class="detail-container">
+    <div style="text-align: center; margin-bottom: 2rem;">
+      <h1 style="font-size: 1.75rem; font-weight: 800; margin-bottom: 0.5rem;">Sign In</h1>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">
+        Access your role-specific hackathon workspace
+      </p>
+    </div>
+
+    <div id="error-alert" style="display: none; background: #FEF2F2; border: 1px solid #FCA5A5; color: #991B1B; padding: 0.75rem 1rem; border-radius: var(--radius-md); font-size: 0.875rem; margin-bottom: 1.25rem;"></div>
+
+    <form id="login-form" onsubmit="handleLogin(event)">
+      {% csrf_token %}
+      <div style="margin-bottom: 1.25rem;">
+        <label for="email" style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.35rem;">Email Address</label>
+        <input type="email" id="email" name="email" class="search-input" style="padding-left: 0.75rem;" required placeholder="name@example.org">
+      </div>
+
+      <div style="margin-bottom: 1.5rem;">
+        <label for="password" style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.35rem;">Password</label>
+        <input type="password" id="password" name="password" class="search-input" style="padding-left: 0.75rem;" required placeholder="••••••••">
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem;">Sign In</button>
+    </form>
+
+    <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color); font-size: 0.85rem; color: var(--text-muted);">
+      <strong>Demo Accounts (password: <code>dogfoodpass123</code>):</strong>
+      <ul style="margin-top: 0.5rem; padding-left: 1.25rem; line-height: 1.6;">
+        <li>Organiser: <code>organizer@example.org</code></li>
+        <li>Judge: <code>tomas.varga@example.org</code></li>
+        <li>Participant: <code>priya1@example.org</code></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+  async function handleLogin(e) {
+    e.preventDefault();
+    const errorDiv = document.getElementById('error-alert');
+    errorDiv.style.display = 'none';
+
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+
+    try {
+      const resp = await fetch('/api/v1/auth/login/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrf
+        },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        errorDiv.textContent = data.detail || 'Authentication failed.';
+        errorDiv.style.display = 'block';
+      } else {
+        window.location.href = '/';
+      }
+    } catch (err) {
+      errorDiv.textContent = 'Network or server error.';
+      errorDiv.style.display = 'block';
+    }
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Submit Project — {{ event.name }}{% endblock %}
+
+{% block content %}
+<div class="main-content" style="max-width: 760px;">
+  <div class="detail-container">
+    <h1 style="font-size: 1.85rem; font-weight: 800; margin-bottom: 0.5rem;">Project Submission</h1>
+    <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.5rem;">
+      Event: <strong>{{ event.name }}</strong>
+    </p>
+
+    {% if not is_open %}
+    <div style="background-color: #FEF2F2; border: 1px solid #FCA5A5; border-radius: var(--radius-md); padding: 1.5rem; margin-bottom: 1.5rem;">
+      <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
+        <span style="font-size: 1.25rem; color: #DC2626;">&cross;</span>
+        <div>
+          <h3 style="color: #991B1B; font-size: 1.05rem; font-weight: 700; margin-bottom: 0.25rem;">Submissions Closed</h3>
+          <p style="color: #B91C1C; font-size: 0.9rem; line-height: 1.5;">
+            Submissions for this event closed strictly at <strong>{{ event.submissions_closes_at|date:"Y-m-d H:i" }} UTC</strong>.
+            Backend policy strictly forbids participant submissions or edits after the cutoff.
+            A previously opened browser form grants no exception.
+          </p>
+        </div>
+      </div>
+    </div>
+    <a href="/projects" class="btn btn-primary">&larr; Return to Project Gallery</a>
+    {% else %}
+    <form method="POST" action="/projects/new">
+      {% csrf_token %}
+      <div style="margin-bottom: 1.25rem;">
+        <label style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.35rem;">Project Title</label>
+        <input type="text" name="title" class="search-input" style="padding-left: 0.75rem;" required placeholder="e.g. Glass Signal">
+      </div>
+      <div style="margin-bottom: 1.25rem;">
+        <label style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.35rem;">Summary (one line)</label>
+        <input type="text" name="summary" class="search-input" style="padding-left: 0.75rem;" required placeholder="Short summary of what it does">
+      </div>
+      <button type="submit" class="btn btn-primary">Submit Project</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

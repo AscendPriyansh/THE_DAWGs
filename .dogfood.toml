@@ -1,0 +1,20 @@
+# .dogfood.toml - isolated local development environment
+[portal]
+base_url = "http://localhost:8000"
+
+[tiers]
+claimed = ["T1"]
+pitch = "Dogfood 2026: Fast, resilient hackathon portal with PostgreSQL persistence and faithful fixture audit."
+
+[auth]
+organizer   = "Cookie: session=brlub9ygfaolyh3win8s6ie60sxnzk4i"
+judge_a     = "Cookie: session=mlo4dtfbx9pbn570v30kgukx1kd13xas"
+judge_b     = "Cookie: session=5e5o6gnfjxvn59u7ob6aa29o67kpv5ks"
+participant = "Cookie: session=qrq3b1otykb1v6s312dca5ktkn8xyzlb"
+
+[routes]
+gallery      = "/projects"
+submit       = "/projects/new"
+judge_scores = "/api/judge/scores"
+peer_scores  = "/api/judge/scores?judge=judge_a"
+csv_export   = "/api/export.csv"

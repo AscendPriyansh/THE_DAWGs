@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}DOGFOOD Portal — Hackathon Platform{% endblock %}</title>
+  <meta name="description" content="{% block meta_description %}High-integrity, self-hostable hackathon platform with verified submissions and private judging.{% endblock %}">
+  <link rel="stylesheet" href="/static/css/portal.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-container">
+      <div class="brand-group">
+        <a href="/" class="brand-logo">
+          <span>DOGFOOD</span>
+          <span class="brand-badge">2026</span>
+        </a>
+        <nav class="nav-links">
+          <a href="/" class="nav-link {% if request.path == '/' or '/events/' in request.path and '/projects' not in request.path %}active{% endif %}">Overview</a>
+          <a href="/projects" class="nav-link {% if '/projects' in request.path and '/projects/new' not in request.path %}active{% endif %}">Project Gallery</a>
+          <a href="/projects/new" class="nav-link {% if '/projects/new' in request.path %}active{% endif %}">Submit</a>
+        </nav>
+      </div>
+      <div class="nav-actions">
+        {% if request.user.is_authenticated %}
+          <span style="font-size: 0.85rem; color: var(--text-muted);">{{ request.user.display_name }}</span>
+          <form action="/api/v1/auth/logout/" method="POST" style="display:inline;" onsubmit="handleLogout(event)">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">Sign Out</button>
+          </form>
+        {% else %}
+          <a href="/login/" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">Sign In</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div>
+        <strong>DOGFOOD 2026 Portal</strong> &bull; PostgreSQL Persistence &bull; Idempotent Provenance
+      </div>
+      <div>
+        UTC Time: <span style="font-family: var(--font-mono);">{{ now|default:"" }}</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    async function handleLogout(e) {
+      e.preventDefault();
+      const form = e.target;
+      const csrf = form.querySelector('[name=csrfmiddlewaretoken]')?.value;
+      await fetch('/api/v1/auth/logout/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrf }
+      });
+      window.location.reload();
+    }
+  </script>
+</body>
+</html>

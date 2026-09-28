@@ -1,0 +1,129 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Project Gallery — {{ event.name }}{% endblock %}
+
+{% block content %}
+<section class="hero" style="padding: 3rem 1.5rem 3.5rem;">
+  <div class="hero-inner">
+    <div class="hero-meta">
+      <span class="phase-pill {% if event.is_submission_open %}open{% else %}closed{% endif %}">
+        {% if event.is_submission_open %}Submissions Open{% else %}Submissions Closed{% endif %}
+      </span>
+      <span style="font-size: 0.85rem; color: var(--text-hero-muted);">
+        Deadline: {{ event.submissions_closes_at|date:"Y-m-d H:i" }} UTC
+      </span>
+    </div>
+    <h1 class="hero-title" style="font-size: 2.25rem;">Project Gallery</h1>
+    <p class="hero-tagline" style="margin-bottom: 0;">
+      Browse official submitted projects for {{ event.name }}. All entries are immutable snapshots locked at deadline cutoff.
+    </p>
+  </div>
+</section>
+
+<div class="main-content">
+  <div class="filter-bar">
+    <div class="search-input-wrap">
+      <span class="search-icon">&telrec;</span>
+      <input
+        type="text"
+        id="gallery-search"
+        class="search-input"
+        placeholder="Search projects by title, summary, or team..."
+        value="{{ query }}"
+        oninput="handleFilter()"
+      >
+    </div>
+    <div class="track-filter-list">
+      <button
+        type="button"
+        class="track-filter-btn {% if not selected_track %}active{% endif %}"
+        onclick="setTrackFilter('')"
+      >
+        All Tracks ({{ total_count }})
+      </button>
+      {% for track in tracks %}
+      <button
+        type="button"
+        class="track-filter-btn {% if selected_track == track.slug %}active{% endif %}"
+        data-track="{{ track.slug }}"
+        onclick="setTrackFilter('{{ track.slug }}')"
+      >
+        {{ track.name }}
+      </button>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="projects-grid" id="projects-container">
+    {% for project in projects %}
+    <a
+      href="/projects/{{ project.id }}/"
+      class="project-card"
+      data-title="{{ project.submitted_revision.title|lower }}"
+      data-summary="{{ project.submitted_revision.summary|lower }}"
+      data-team="{{ project.team.name|lower }}"
+      data-track="{{ project.submitted_revision.track.slug }}"
+    >
+      <div class="project-header">
+        <div class="project-tag-row">
+          <span class="track-badge">{{ project.submitted_revision.track.name }}</span>
+          <span style="font-size: 0.75rem; color: var(--text-subtle); font-family: var(--font-mono);">
+            {{ project.last_submitted_at|date:"M j, H:i" }}
+          </span>
+        </div>
+        <h2 class="project-title">{{ project.submitted_revision.title }}</h2>
+        <p class="project-summary">{{ project.submitted_revision.summary }}</p>
+      </div>
+      <div class="project-footer">
+        <div class="team-indicator">
+          <span>&FilledSmallSquare;</span>
+          <span>{{ project.team.name }}</span>
+        </div>
+        <span style="font-weight: 600; color: var(--accent-blue);">View Project &rarr;</span>
+      </div>
+    </a>
+    {% empty %}
+    <div style="grid-column: 1 / -1; padding: 4rem 1rem; text-align: center; color: var(--text-muted); background: #FFF; border: 1px solid var(--border-color); border-radius: var(--radius-lg);">
+      <h3>No submitted projects found</h3>
+      <p style="margin-top: 0.5rem; font-size: 0.9rem;">No entries match the selected filter criteria.</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+  let activeTrack = '{{ selected_track }}';
+
+  function setTrackFilter(trackSlug) {
+    activeTrack = trackSlug;
+    document.querySelectorAll('.track-filter-btn').forEach(btn => {
+      const t = btn.getAttribute('data-track') || '';
+      btn.classList.toggle('active', t === activeTrack);
+    });
+    handleFilter();
+  }
+
+  function handleFilter() {
+    const query = document.getElementById('gallery-search').value.toLowerCase().trim();
+    const cards = document.querySelectorAll('.project-card');
+    let visibleCount = 0;
+
+    cards.forEach(card => {
+      const title = card.getAttribute('data-title') || '';
+      const summary = card.getAttribute('data-summary') || '';
+      const team = card.getAttribute('data-team') || '';
+      const track = card.getAttribute('data-track') || '';
+
+      const matchesTrack = !activeTrack || track === activeTrack;
+      const matchesQuery = !query || title.includes(query) || summary.includes(query) || team.includes(query);
+
+      if (matchesTrack && matchesQuery) {
+        card.style.display = 'flex';
+        visibleCount++;
+      } else {
+        card.style.display = 'none';
+      }
+    });
+  }
+</script>
+{% endblock %}

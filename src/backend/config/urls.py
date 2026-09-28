@@ -44,6 +44,15 @@ from apps.results.views import (
     api_get_results,
     results_csv_export,
 )
+from apps.voting.views import (
+    api_project_comments,
+    api_comment_detail,
+    api_moderate_comment,
+    api_report_moderation,
+    api_moderation_inbox,
+    api_resolve_moderation_case,
+    api_dismiss_moderation_case,
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -115,4 +124,14 @@ urlpatterns = [
     path("api/v1/events/<slug:slug>/results/publish/", api_publish_results, name="api_publish_results"),
     path("api/v1/events/<slug:slug>/results/", api_get_results, name="api_get_results"),
     path("api/v1/events/<slug:slug>/exports/results.csv", results_csv_export, name="event_results_csv"),
+    
+    # Community & Moderation (M06)
+    path("api/v1/events/<slug:slug>/projects/<uuid:project_id>/comments/", api_project_comments, name="api_project_comments"),
+    path("api/v1/events/<slug:slug>/comments/<uuid:comment_id>/", api_comment_detail, name="api_comment_detail"),
+    path("api/v1/events/<slug:slug>/comments/<uuid:comment_id>/moderate/", api_moderate_comment, name="api_moderate_comment"),
+    path("api/v1/events/<slug:slug>/moderation/report/", api_report_moderation, name="api_report_moderation"),
+    path("api/v1/events/<slug:slug>/moderation/inbox/", api_moderation_inbox, name="api_moderation_inbox"),
+    path("api/v1/events/<slug:slug>/moderation/cases/<uuid:case_id>/resolve/", api_resolve_moderation_case, name="api_resolve_moderation_case"),
+    path("api/v1/events/<slug:slug>/moderation/cases/<uuid:case_id>/dismiss/", api_dismiss_moderation_case, name="api_dismiss_moderation_case"),
 ]
+

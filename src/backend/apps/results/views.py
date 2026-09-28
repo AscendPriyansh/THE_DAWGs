@@ -10,7 +10,7 @@ from rest_framework.response import Response
 
 from apps.events.models import Event, EventMembership
 from apps.events.views import get_default_event
-from apps.results.models import Publication, ResultRow, ResultRun
+from apps.results.models import CommunityResultRow, Publication, ResultRow, ResultRun
 from apps.results.services import calculate_result_run, publish_results
 
 
@@ -85,6 +85,22 @@ def api_preview_results(request, slug):
                 "eligible": r.eligible,
             })
 
+        comm_rows = (
+            CommunityResultRow.objects.filter(result_run=run)
+            .select_related("project__submitted_revision")
+            .order_by("rank", "id")
+        )
+        comm_data = []
+        for cr in comm_rows:
+            rev = cr.project.submitted_revision
+            comm_data.append({
+                "project_id": str(cr.project_id),
+                "title": rev.title if rev else "",
+                "counted_votes": cr.counted_votes,
+                "excluded_votes": cr.excluded_votes,
+                "rank": cr.rank,
+            })
+
         return Response({
             "result_run_id": str(run.id),
             "algorithm": run.algorithm_version,
@@ -93,6 +109,7 @@ def api_preview_results(request, slug):
             "output_sha256": run.output_sha256,
             "diagnostics": run.diagnostics_json,
             "rows": rows_data,
+            "community_rows": comm_data,
         })
     except PermissionDenied as e:
         return Response({"detail": str(e)}, status=status.HTTP_403_FORBIDDEN)
@@ -163,6 +180,21 @@ def api_get_results(request, slug):
             "reviews_count": r.completed_review_count,
         })
 
+    comm_rows = (
+        CommunityResultRow.objects.filter(result_run=pub.result_run)
+        .select_related("project__submitted_revision")
+        .order_by("rank", "id")
+    )
+    comm_data = []
+    for cr in comm_rows:
+        rev = cr.project.submitted_revision
+        comm_data.append({
+            "project_id": str(cr.project_id),
+            "project_title": rev.title if rev else "",
+            "counted_votes": cr.counted_votes,
+            "rank": cr.rank,
+        })
+
     return Response({
         "event_slug": event.slug,
         "publication_number": pub.number,
@@ -170,6 +202,7 @@ def api_get_results(request, slug):
         "algorithm": pub.result_run.algorithm_version,
         "public_note": pub.public_note_md,
         "results": data,
+        "community_results": comm_data,
     })
 
 

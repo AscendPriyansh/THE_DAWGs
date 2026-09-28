@@ -79,3 +79,24 @@ class Publication(models.Model):
 
     def __str__(self):
         return f"Publication #{self.number} for {self.event.name}"
+
+
+class CommunityResultRow(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    result_run = models.ForeignKey(ResultRun, on_delete=models.CASCADE, related_name="community_rows")
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="community_result_rows")
+    eligible = models.BooleanField(default=True)
+    counted_votes = models.PositiveIntegerField(default=0)
+    excluded_votes = models.PositiveIntegerField(default=0)
+    rank = models.PositiveIntegerField(null=True, blank=True)
+
+    class Meta:
+        db_table = "community_result_rows"
+        constraints = [
+            models.UniqueConstraint(fields=["result_run", "project"], name="unique_community_result_run_project")
+        ]
+        ordering = ["rank", "id"]
+
+    def __str__(self):
+        return f"CommunityResult Project {self.project_id}: {self.counted_votes} votes (Rank {self.rank})"
+

@@ -246,6 +246,19 @@ def api_next_action(request, slug):
         })
 
     elif membership.role == EventMembership.Role.ORGANISER:
+        from apps.voting.models import ModerationCase
+        open_cases = ModerationCase.objects.filter(event=event, status=ModerationCase.Status.OPEN).count()
+        if open_cases > 0:
+            return Response({
+                "code": "COMPLETE_MODERATION_REVIEWS",
+                "label": f"Complete {open_cases} moderation review{'s' if open_cases != 1 else ''}",
+                "reason": f"There are {open_cases} unresolved moderation case{'s' if open_cases != 1 else ''} pending organiser review.",
+                "href": f"/events/{event.slug}/moderation/inbox/",
+                "deadline_at": event.judging_closes_at.isoformat(),
+                "server_now": now.isoformat(),
+                "blocking_items": [f"{open_cases} open moderation case(s)"],
+                "state_version": event.data_version,
+            })
         return Response({
             "code": "ORGANISER_DASHBOARD",
             "label": "Manage event and review progress",

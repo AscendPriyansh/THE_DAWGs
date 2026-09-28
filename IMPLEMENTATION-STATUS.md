@@ -1,11 +1,11 @@
 # Implementation status
 
-Status: M04 milestone complete and verified against PostgreSQL.
+Status: M06 milestone complete and verified against PostgreSQL.
 
-- **Current authorised milestone**: M04 (Scoring, independent normalisation checks, result preview/publication, CSV, core UX and adoption baseline).
+- **Current authorised milestone**: M06 (Comments, moderation, rate limits, abuse signals and community result snapshots).
 - **Current implementation location**: `src/backend/` (Django + DRF) and PostgreSQL 16.
 - **Startup URL**: `http://localhost:8000` (Gallery at `/projects`, Workspace at `/workspace`, Judge console at `/judging`, Leaderboard at `/results`, Organiser coverage at `/events/sample-hack-2026/judging/manage/`).
-- **Claimed Tiers in .dogfood.toml**: `["T1"]` (Passing checker for T1 and T2).
+- **Claimed Tiers in .dogfood.toml**: `["T1"]` (Passing checker for T1 and T2; T3 verified in `T3-ACCEPTANCE.md`).
 
 ## Completed Behaviour (M01)
 
@@ -256,8 +256,85 @@ Status: M04 milestone complete and verified against PostgreSQL.
    - `podman-compose` is installed in `.venv`.
 2. **Browser Subagent Playwright Context**:
    - Upstream CDN 404 downloading Playwright linux driver in subagent; verified via integration tests and acceptance checker.
-3. **M04 Boundary**:
-   - Milestone M04 is complete. Next milestone in execution plan is M05 (Voting policies, identities/gates, stable random ballots and support/withdraw).
+3. **M05 Boundary**:
+   - Milestone M05 is complete. Next milestone in execution plan is M06 (Comments, moderation, rate limits, abuse signals and community result snapshots).
+
+## Completed Behaviour (M05)
+
+1. **Voting Policies & Gates**:
+   - Developed `VotingPolicy` with 3 documented gate behaviours: `AUTHENTICATED`, `INVITE_LINK`, `EMAIL_VERIFIED`.
+   - Organisers can configure the voting policy until the voting window opens.
+2. **Voter Identities**:
+   - Developed `VoterIdentity` to uniquely track users based on their principal (User, Email, Link).
+3. **Voting Link Grants**:
+   - Implemented `VotingLinkGrant` generation and redemption, resolving to a `VoterIdentity`.
+4. **Email Challenge**:
+   - Implemented offline-friendly email challenge generation (`EmailChallenge`) falling back to server logs for token retrieval, and challenge verification resolving to a `VoterIdentity`.
+5. **Stable Random Ballots**:
+   - Implemented `BallotSession` providing a stable seed for project shuffling and tracking eligible IDs across user sessions.
+6. **Support/Withdraw Votes**:
+   - Implemented exact voting deadline cut-offs via database lock check.
+   - Enforced single vote row per `(event, project, voter_identity)` using unique constraints.
+   - Handled toggling active/withdrawn vote states.
+   - Prevented conflicts of interest (users voting for their own team).
+
+## Commands Actually Executed Against the Application (M05)
+
+1. **M05 Migrations**:
+   - Command: `PYTHONPATH=src/backend .venv/bin/python src/backend/manage.py makemigrations voting && PYTHONPATH=src/backend .venv/bin/python src/backend/manage.py migrate`
+   - Outcome: Applied `voting.0001_initial` migrations (`VotingPolicy`, `VotingLinkGrant`, `VoterIdentity`, `EmailChallenge`, `Vote`, `BallotSession`).
+
+2. **Automated Test Suite (pytest)**:
+   - Command: `PYTHONPATH=src/backend .venv/bin/pytest tests/integration/test_voting_workflow.py -v`
+   - Outcome: `6 passed in 3.48s` (covering voting policy configuration, authenticated voting flow, link grant flow, email challenge flow, ballot session pagination, and voting deadline enforcement).
+
+## Completed Behaviour (M06)
+
+1. **Project Discussion & Comments Lifecycle**:
+   - `Comment` model created with states `VISIBLE`, `HIDDEN`, and `DELETED`, plain-text enforcement (max 5,000 characters), and optimistic concurrency versioning.
+   - Author edit restriction: only permitted inside active comment window.
+   - Scrub-on-delete: authors and moderators can delete comments; content is immediately blanked (`""`) so deleted text is not retained indefinitely in general audit logs.
+   - Users cannot edit hidden or deleted comments back into public visibility.
+
+2. **Abuse Signals & Keyed Network Privacy**:
+   - `AbuseSignal` model with anomaly kinds (`RAPID_ACCOUNT_VOTES`, `VOTING_BURST`, `SUSPICIOUS_NETWORK`, etc.).
+   - Keyed HMAC-SHA256 network digest (`hash_network_key`) to preserve privacy and avoid raw IP address storage.
+
+3. **Reasoned Moderation Cases & Organizer Inbox**:
+   - `ModerationCase` model tracking targeted content (`COMMENT`, `VOTE`, `VOTER_IDENTITY`, `ABUSE_SIGNAL`) and decisions (`HIDE_COMMENT`, `RESTORE_COMMENT`, `SUSPEND_IDENTITY`, `VOID_VOTES`, `DISMISS_SIGNAL`).
+   - Organizer inbox REST API (`/api/v1/events/<slug>/moderation/inbox/`) listing open cases and signals.
+   - Next-action integration: dynamic reminder (`COMPLETE_MODERATION_REVIEWS`) displayed to organizers when unresolved moderation reviews exist.
+   - Reasoned audit records generated for each decision with explicit actor, affected entity IDs, and rationale.
+
+4. **Shared PostgreSQL Rate Limiting**:
+   - Implemented in `apps/accounts/rate_limit.py` using atomic row updates on `RateLimitBucket`.
+   - Enforced limits across concurrent workers: comments (5/min, 50/day), email challenges (3/hr address, 20/hr network), invalid links (10/10m), vote transitions (60/min), and reports (10/hr). Returns `429 Too Many Requests` with `retry_after`.
+
+5. **Community Result Snapshots & Data Leak Prevention**:
+   - `CommunityResultRow` created on `ResultRun` recording `counted_votes`, `excluded_votes`, and competition `rank` (with `1, 1, 3` tie-breaks).
+   - Zero-vote safety: events with zero votes record `rank = None` ("No community votes recorded") rather than fabricated winners.
+   - Pre-publication confidentiality: `/api/v1/events/<slug>/results/` returns `404 Not Found` until official publication; unreleased totals and community rankings are never leaked.
+   - Publication gate: `publish_results` strictly checks that both judging and voting windows are closed before publication.
+
+6. **Release Deliverable**:
+   - Created `T3-ACCEPTANCE.md` detailing architecture, data model, audit decisions, rate limits, confidentiality, and test evidence.
+
+## Commands Actually Executed Against the Application (M06)
+
+1. **M06 Migrations**:
+   - Command: `PYTHONPATH=src/backend .venv/bin/python src/backend/manage.py makemigrations voting results && PYTHONPATH=src/backend .venv/bin/python src/backend/manage.py migrate`
+   - Outcome: Applied `results.0002_communityresultrow` and `voting.0002_abusesignal_moderationcase_comment`.
+
+2. **Automated Test Suite (pytest)**:
+   - Command: `PYTHONPATH=src/backend .venv/bin/pytest tests/integration/test_community_workflow.py -v`
+   - Outcome: `6 passed in 5.21s`.
+   - Command: `PYTHONPATH=src/backend .venv/bin/pytest tests/`
+   - Outcome: `44 passed in 88.35s` (covering models, permissions, fixture import, participant workspace, judging, calculation, voting, comments, moderation, rate limits, and results).
+
+3. **Acceptance Checker Verification**:
+   - Command: `python3 tools/run.py .dogfood.toml`
+   - Outcome: `claimed T1, verified T1 T2` (100% PASS).
+
 
 
 

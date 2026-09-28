@@ -9,8 +9,9 @@ from apps.judging.calculation import (
     execute_scoring_run,
 )
 from apps.judging.models import Criterion, JudgeAssignment, Review, Rubric
-from apps.results.models import Publication, ResultRow, ResultRun
+from apps.results.models import CommunityResultRow, Publication, ResultRow, ResultRun
 from apps.submissions.models import Project
+from apps.voting.models import Vote, VoterIdentity
 
 
 def build_event_input_snapshot(event: Event, cohort_scope: str = None) -> dict:
@@ -129,12 +130,54 @@ def calculate_result_run(
 
     output_sha256 = canonical_json_hash(ranked_rows)
 
+    # Compute community voting results for submitted projects
+    # Count active votes (from active voter identities) and excluded votes (withdrawn, void, or suspended)
+    community_items = []
+    projects_qs = Project.objects.filter(event=event, state=Project.State.SUBMITTED).order_by("id")
+    for p in projects_qs:
+        counted = Vote.objects.filter(
+            event=event,
+            project=p,
+            state=Vote.State.ACTIVE,
+            voter_identity__status=VoterIdentity.Status.ACTIVE,
+        ).count()
+        excluded = Vote.objects.filter(
+            event=event,
+            project=p,
+        ).exclude(
+            state=Vote.State.ACTIVE,
+            voter_identity__status=VoterIdentity.Status.ACTIVE,
+        ).count()
+        community_items.append({
+            "project": p,
+            "counted": counted,
+            "excluded": excluded,
+        })
+
+    total_counted_votes = sum(c["counted"] for c in community_items)
+    if total_counted_votes == 0:
+        # Per spec: "A snapshot with no votes shows 'No community votes recorded', not invented winners."
+        for c in community_items:
+            c["rank"] = None
+    else:
+        # Sort descending by counted votes, with competition ties (1, 1, 3)
+        sorted_comm = sorted(community_items, key=lambda c: (-c["counted"], str(c["project"].id)))
+        for i, c in enumerate(sorted_comm):
+            if i > 0 and c["counted"] == sorted_comm[i - 1]["counted"]:
+                c["rank"] = sorted_comm[i - 1]["rank"]
+            else:
+                c["rank"] = i + 1
+
     with transaction.atomic():
         run = ResultRun.objects.create(
             event=event,
             source_data_version=event.data_version,
             algorithm_version=algorithm,
-            parameters_json={"lambda": lambda_val, "ranking_scope": event.ranking_scope},
+            parameters_json={
+                "lambda": lambda_val,
+                "ranking_scope": event.ranking_scope,
+                "community_total_votes": total_counted_votes,
+            },
             input_snapshot_json=snapshot,
             input_sha256=input_sha256,
             output_sha256=output_sha256,
@@ -163,6 +206,20 @@ def calculate_result_run(
             )
         ResultRow.objects.bulk_create(row_objects)
 
+        # Bulk create CommunityResultRow objects
+        comm_row_objects = [
+            CommunityResultRow(
+                result_run=run,
+                project=c["project"],
+                eligible=True,
+                counted_votes=c["counted"],
+                excluded_votes=c["excluded"],
+                rank=c["rank"],
+            )
+            for c in community_items
+        ]
+        CommunityResultRow.objects.bulk_create(comm_row_objects)
+
         AuditEvent.objects.create(
             event=event,
             actor_user=actor_user,
@@ -175,6 +232,7 @@ def calculate_result_run(
                 "data_version": event.data_version,
                 "input_sha256": input_sha256,
                 "output_sha256": output_sha256,
+                "community_total_votes": total_counted_votes,
             },
         )
 
@@ -190,7 +248,7 @@ def publish_results(
 ) -> Publication:
     """
     Formally publishes a result run as the public leaderboard.
-    Validates judging window has closed, data version matches, and freezes judging.
+    Validates judging window and voting window have closed, data version matches, and freezes judging.
     """
     membership = EventMembership.objects.filter(
         event=event, user=actor_user, status=EventMembership.Status.ACTIVE
@@ -210,6 +268,12 @@ def publish_results(
     if now < event.judging_closes_at:
         raise ValidationError(
             f"Cannot publish results before judging has closed ({event.judging_closes_at.isoformat()})."
+        )
+
+    # If voting is configured, verify voting window has also closed
+    if event.voting_closes_at and now < event.voting_closes_at:
+        raise ValidationError(
+            f"Cannot publish results before community voting has closed ({event.voting_closes_at.isoformat()})."
         )
 
     if waivers is None:

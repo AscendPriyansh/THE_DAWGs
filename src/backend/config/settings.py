@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     "apps.results",
     "apps.audit",
     "apps.imports",
+    "apps.voting",
 ]
 
 MIDDLEWARE = [

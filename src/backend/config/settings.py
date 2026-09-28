@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     "apps.audit",
     "apps.imports",
     "apps.voting",
+    "apps.integrations",
 ]
 
 MIDDLEWARE = [
@@ -101,6 +102,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
+        "apps.integrations.authentication.ApiKeyAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [

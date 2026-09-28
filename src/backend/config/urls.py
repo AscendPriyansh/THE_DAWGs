@@ -53,6 +53,12 @@ from apps.voting.views import (
     api_resolve_moderation_case,
     api_dismiss_moderation_case,
 )
+from apps.integrations.views import (
+    api_event_api_keys,
+    api_revoke_api_key,
+    api_openapi_schema,
+    api_docs_ui,
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -133,5 +139,14 @@ urlpatterns = [
     path("api/v1/events/<slug:slug>/moderation/inbox/", api_moderation_inbox, name="api_moderation_inbox"),
     path("api/v1/events/<slug:slug>/moderation/cases/<uuid:case_id>/resolve/", api_resolve_moderation_case, name="api_resolve_moderation_case"),
     path("api/v1/events/<slug:slug>/moderation/cases/<uuid:case_id>/dismiss/", api_dismiss_moderation_case, name="api_dismiss_moderation_case"),
+
+    # Scoped API Keys & Integrations (M07)
+    path("api/v1/events/<slug:slug>/api-keys/", api_event_api_keys, name="api_event_api_keys"),
+    path("api/v1/events/<slug:slug>/api-keys/<uuid:key_id>/", api_revoke_api_key, name="api_revoke_api_key"),
+
+    # OpenAPI Schema & Local Documentation (M07)
+    path("api/v1/schema.json", api_openapi_schema, name="api_openapi_schema"),
+    path("api/docs", api_docs_ui, name="api_docs_ui_no_slash"),
+    path("api/docs/", api_docs_ui, name="api_docs_ui"),
 ]
 

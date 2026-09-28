@@ -1,10 +1,10 @@
 # Implementation status
 
-Status: M06 milestone complete and verified against PostgreSQL.
+Status: M07 milestone complete and verified against PostgreSQL.
 
-- **Current authorised milestone**: M06 (Comments, moderation, rate limits, abuse signals and community result snapshots).
+- **Current authorised milestone**: M07 (Complete event REST API, scoped keys, local OpenAPI docs and idempotency contracts).
 - **Current implementation location**: `src/backend/` (Django + DRF) and PostgreSQL 16.
-- **Startup URL**: `http://localhost:8000` (Gallery at `/projects`, Workspace at `/workspace`, Judge console at `/judging`, Leaderboard at `/results`, Organiser coverage at `/events/sample-hack-2026/judging/manage/`).
+- **Startup URL**: `http://localhost:8000` (Gallery at `/projects`, Workspace at `/workspace`, Judge console at `/judging`, Leaderboard at `/results`, Organiser coverage at `/events/sample-hack-2026/judging/manage/`, OpenAPI docs at `/api/docs`).
 - **Claimed Tiers in .dogfood.toml**: `["T1"]` (Passing checker for T1 and T2; T3 verified in `T3-ACCEPTANCE.md`).
 
 ## Completed Behaviour (M01)
@@ -334,6 +334,50 @@ Status: M06 milestone complete and verified against PostgreSQL.
 3. **Acceptance Checker Verification**:
    - Command: `python3 tools/run.py .dogfood.toml`
    - Outcome: `claimed T1, verified T1 T2` (100% PASS).
+
+## Completed Behaviour (M07)
+
+1. **Scoped Event API Keys (`ApiCredential`)**:
+   - Implemented `ApiCredential` model with required `event_id` (no global wildcard keys), public prefix, expiration, revocation, and validated scopes allowlist: `event:read`, `event:manage`, `team:manage`, `submission:write`, `judging:write`, `results:publish`, `community:moderate`, `integrations:manage`, `credentials:issue`, `data:export`, `data:import`.
+   - Security: high-entropy secret token (`dg_live_...`) is shown once to the creator; only its SHA-256 digest is persisted in PostgreSQL.
+   - Dual Authentication: DRF `ApiKeyAuthentication` supports bearer tokens without CSRF requirements, with clear separation from session authentication. Ambiguous mixed identities (conflicting session cookies and bearer headers) are rejected.
+
+2. **Role & Scope Intersection Enforcement**:
+   - Implemented `enforce_scope_and_role` ensuring effective authority is always the intersection of key scopes and owner's active `EventMembership` role.
+   - Guarded against privilege elevation: a participant holding an API key with `results:publish` is rejected with `403 Forbidden` (`Organiser permissions required`).
+   - Scopes enforce least privilege: an organiser key lacking `results:publish` is rejected when attempting result calculations.
+   - Revoked, expired, or deactivated keys immediately return `401 Unauthorized`.
+
+3. **Idempotency Contracts (`IdempotencyRecord`)**:
+   - Implemented `IdempotencyRecord` tracking actor key, event, route, idempotency key, request SHA-256 digest, response status, and JSON payload.
+   - Applied `@idempotent_view` decorator to critical mutation endpoints (e.g. `results:publish`).
+   - Replay safety: identical requests return cached responses without re-executing business logic.
+   - Conflict detection: duplicate keys with mismatched payloads return `409 Conflict`. Concurrent pending executions return retryable `409 Conflict`.
+   - Expiration: records automatically expire after 24 hours.
+
+4. **Local Machine-Readable OpenAPI 3.1 & Interactive Docs**:
+   - Published comprehensive OpenAPI 3.1.0 JSON schema at `/api/v1/schema.json` documenting paths, parameters, schemas, error codes, and bearer security schemes.
+   - Published local interactive documentation UI at `/api/docs` and `/api/docs/` with zero external CDN dependencies (100% offline-ready).
+
+5. **Release Deliverable**:
+   - Created `API-COVERAGE.md` containing an exhaustive inventory mapping every UI business action to its REST endpoint, permitted role, required API scope, domain service, and permission test.
+
+## Commands Actually Executed Against the Application (M07)
+
+1. **M07 Migrations**:
+   - Command: `PYTHONPATH=src/backend .venv/bin/python src/backend/manage.py makemigrations integrations && PYTHONPATH=src/backend .venv/bin/python src/backend/manage.py migrate`
+   - Outcome: Applied `integrations.0001_initial` (`ApiCredential`, `IdempotencyRecord`).
+
+2. **Automated Test Suite (pytest)**:
+   - Command: `PYTHONPATH=src/backend .venv/bin/pytest tests/integration/test_api_contracts.py -v`
+   - Outcome: `5 passed in 4.33s` (covering key issuance, bearer auth, rejection rules, role/scope intersection, idempotency cache & conflict, and OpenAPI docs).
+   - Command: `PYTHONPATH=src/backend .venv/bin/pytest tests/`
+   - Outcome: `49 passed in 90.15s` (no regressions across all existing milestones).
+
+3. **Acceptance Checker Verification**:
+   - Command: `python3 tools/run.py .dogfood.toml`
+   - Outcome: `claimed T1, verified T1 T2` (100% PASS).
+
 
 
 

@@ -10,6 +10,8 @@ from rest_framework.response import Response
 
 from apps.events.models import Event, EventMembership
 from apps.events.views import get_default_event
+from apps.integrations.authentication import enforce_scope_and_role
+from apps.integrations.idempotency import idempotent_view
 from apps.results.models import CommunityResultRow, Publication, ResultRow, ResultRun
 from apps.results.services import calculate_result_run, publish_results
 
@@ -63,6 +65,7 @@ def api_preview_results(request, slug):
     lambda_val = request.data.get("lambda", event.normalisation_lambda)
 
     try:
+        enforce_scope_and_role(request, event, required_scope="results:publish", required_role=EventMembership.Role.ORGANISER)
         run = calculate_result_run(request.user, event, algorithm=algorithm, lambda_val=lambda_val)
         rows = (
             ResultRow.objects.filter(result_run=run)
@@ -119,6 +122,7 @@ def api_preview_results(request, slug):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@idempotent_view("results:publish")
 def api_publish_results(request, slug):
     """Formal publication of a result run."""
     event = get_object_or_404(Event, slug=slug)
@@ -131,6 +135,7 @@ def api_publish_results(request, slug):
     waivers = request.data.get("waivers", [])
 
     try:
+        enforce_scope_and_role(request, event, required_scope="results:publish", required_role=EventMembership.Role.ORGANISER)
         pub = publish_results(request.user, event, result_run, public_note, waivers)
         return Response({
             "status": "PUBLISHED",

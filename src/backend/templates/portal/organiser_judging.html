@@ -1,0 +1,94 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Judging Coverage & Progress — {{ event.name }} — DOGFOOD 2026{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1100px; padding: 2rem 1rem;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid var(--border); padding-bottom: 1.5rem;">
+    <div>
+      <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;">
+        <span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);">Organiser Console</span>
+        <span class="badge badge-subtle">Private Judging Dashboard</span>
+      </div>
+      <h1 style="font-size: 2rem; font-weight: 700; margin: 0;">Judging Coverage & Progress</h1>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+      <a href="/api/export.csv" class="btn btn-secondary">Export Results CSV</a>
+      <a href="/events/{{ event.slug }}/manage/" class="btn btn-secondary">Event Settings</a>
+    </div>
+  </div>
+
+  <!-- Summary KPI Cards -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+    <div class="card" style="padding: 1.25rem;">
+      <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">Submitted Projects</div>
+      <div style="font-size: 1.75rem; font-weight: 700; font-family: var(--font-mono);">{{ progress.total_projects }}</div>
+    </div>
+    <div class="card" style="padding: 1.25rem;">
+      <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">Required / Project</div>
+      <div style="font-size: 1.75rem; font-weight: 700; font-family: var(--font-mono);">{{ progress.required_reviews_per_project }}</div>
+    </div>
+    <div class="card" style="padding: 1.25rem;">
+      <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">Completed Reviews</div>
+      <div style="font-size: 1.75rem; font-weight: 700; font-family: var(--font-mono); color: #4ade80;">{{ progress.total_completed_reviews }}</div>
+    </div>
+    <div class="card" style="padding: 1.25rem;">
+      <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">Fully Covered</div>
+      <div style="font-size: 1.75rem; font-weight: 700; font-family: var(--font-mono); color: #60a5fa;">{{ progress.fully_covered_count }}</div>
+    </div>
+    <div class="card" style="padding: 1.25rem;">
+      <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">Partially Covered</div>
+      <div style="font-size: 1.75rem; font-weight: 700; font-family: var(--font-mono); color: #fbbf24;">{{ progress.partially_covered_count }}</div>
+    </div>
+    <div class="card" style="padding: 1.25rem;">
+      <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">Uncovered / Needs Judge</div>
+      <div style="font-size: 1.75rem; font-weight: 700; font-family: var(--font-mono); color: #f87171;">{{ progress.uncovered_count }}</div>
+    </div>
+  </div>
+
+  <!-- Project Coverage Table -->
+  <div class="card" style="padding: 1.5rem;">
+    <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.25rem;">Project Review Coverage Status</h2>
+    <div style="overflow-x: auto;">
+      <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+        <thead>
+          <tr style="border-bottom: 1px solid var(--border); color: var(--text-muted);">
+            <th style="padding: 0.75rem 0.5rem;">Project Title</th>
+            <th style="padding: 0.75rem 0.5rem;">Track</th>
+            <th style="padding: 0.75rem 0.5rem;">Team</th>
+            <th style="padding: 0.75rem 0.5rem; text-align: center;">Assigned</th>
+            <th style="padding: 0.75rem 0.5rem; text-align: center;">Completed / Target</th>
+            <th style="padding: 0.75rem 0.5rem; text-align: right;">Coverage Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in progress.projects %}
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);">
+              <td style="padding: 0.75rem 0.5rem; font-weight: 500;">
+                <a href="/projects/{{ p.project_id }}/" style="color: var(--text); text-decoration: none;">
+                  {{ p.title }}
+                </a>
+              </td>
+              <td style="padding: 0.75rem 0.5rem; color: var(--text-muted);">{{ p.track_name }}</td>
+              <td style="padding: 0.75rem 0.5rem; color: var(--text-muted);">{{ p.team_name }}</td>
+              <td style="padding: 0.75rem 0.5rem; text-align: center; font-family: var(--font-mono);">{{ p.assigned_reviews }}</td>
+              <td style="padding: 0.75rem 0.5rem; text-align: center; font-family: var(--font-mono);">
+                <strong>{{ p.completed_reviews }}</strong> / {{ p.required_reviews }}
+              </td>
+              <td style="padding: 0.75rem 0.5rem; text-align: right;">
+                {% if p.status == "FULLY_COVERED" %}
+                  <span class="badge" style="background: rgba(34, 197, 94, 0.15); color: #4ade80;">Fully Covered</span>
+                {% elif p.status == "PARTIALLY_COVERED" %}
+                  <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24;">Partially Covered</span>
+                {% else %}
+                  <span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #f87171;">Uncovered</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,240 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Judge Workspace — {{ event.name }} — DOGFOOD 2026{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1100px; padding: 2rem 1rem;">
+  <!-- Header -->
+  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; border-bottom: 1px solid var(--border); padding-bottom: 1.5rem;">
+    <div>
+      <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+        <span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3);">Judge Portal</span>
+        {% if is_judging_open %}
+          <span class="badge" style="background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3);">● Judging Window Open</span>
+        {% else %}
+          <span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);">Judging Closed</span>
+        {% endif %}
+      </div>
+      <h1 style="font-size: 2rem; font-weight: 700; margin: 0 0 0.5rem 0;">{{ event.name }} Evaluation</h1>
+      <p style="color: var(--text-muted); margin: 0; font-size: 0.95rem;">
+        Evaluating as <strong>{{ request.user.display_name }}</strong>. All evaluations are private and confidential.
+      </p>
+    </div>
+    <div style="text-align: right;">
+      <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem;">Evaluation Queue</div>
+      <div style="font-size: 1.5rem; font-weight: 700; font-family: var(--font-mono);">
+        {{ assignments|length }} <span style="font-size: 0.9rem; color: var(--text-muted); font-weight: 400;">Assigned</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" style="display: none; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem;"></div>
+
+  <!-- Assignments Grid -->
+  {% if assignments %}
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+      {% for a in assignments %}
+        {% with rev=a.project_revision review=a.review %}
+        <div class="card" id="assignment-card-{{ a.id }}" style="padding: 1.75rem; border: 1px solid var(--border); transition: border-color 0.2s;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.4rem;">
+                <span class="badge badge-subtle">{{ rev.track.name|default:"General Track" }}</span>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Team: <strong>{{ a.project.team.name }}</strong></span>
+              </div>
+              <h2 style="font-size: 1.35rem; font-weight: 600; margin: 0 0 0.5rem 0;">{{ rev.title }}</h2>
+              <p style="color: var(--text-muted); font-size: 0.95rem; margin: 0; line-height: 1.5;">{{ rev.summary }}</p>
+            </div>
+            <div>
+              {% if review and review.status == "SUBMITTED" %}
+                <span class="badge" style="background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3);">✓ Submitted</span>
+              {% elif review and review.status == "DRAFT" %}
+                <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">✎ Draft Saved</span>
+              {% else %}
+                <span class="badge badge-subtle">Unstarted</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Evidence Links -->
+          <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; font-size: 0.85rem;">
+            {% if rev.repo_url %}
+              <a href="{{ rev.repo_url }}" target="_blank" rel="noopener" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">
+                Code Repository ↗
+              </a>
+            {% endif %}
+            {% if rev.demo_url %}
+              <a href="{{ rev.demo_url }}" target="_blank" rel="noopener" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">
+                Live Demo ↗
+              </a>
+            {% endif %}
+          </div>
+
+          <!-- Evaluation Form -->
+          <form id="form-{{ a.id }}" onsubmit="event.preventDefault();" style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem;">
+            {% csrf_token %}
+            <h3 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 1rem; color: var(--text);">
+              Rubric: {{ a.rubric.name }}
+            </h3>
+
+            <div style="display: flex; flex-direction: column; gap: 1.25rem; margin-bottom: 1.5rem;">
+              {% for crit in a.rubric.criteria.all %}
+                <div style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 1rem;">
+                  <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.25rem;">
+                    <strong>{{ crit.label }}</strong>
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">Weight: {{ crit.weight }}</span>
+                  </div>
+                  {% if crit.description_md %}
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0 0 0.5rem 0;">{{ crit.description_md }}</p>
+                  {% endif %}
+                  
+                  <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem;">
+                    <span style="font-size: 0.75rem; color: var(--text-muted); margin-right: 0.5rem;">Score (1-5):</span>
+                    {% for score_num in "12345" %}
+                      <label style="display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 6px; border: 1px solid var(--border); cursor: pointer; font-weight: 600; font-family: var(--font-mono); font-size: 0.95rem; user-select: none;">
+                        <input type="radio" name="crit_{{ crit.id }}" value="{{ score_num }}" style="position: absolute; opacity: 0; pointer-events: none;"
+                               {% for s in review.scores.all %}{% if s.criterion_id == crit.id and s.value|stringformat:"i" == score_num %}checked{% endif %}{% endfor %}
+                               onchange="highlightRating(this)">
+                        {{ score_num }}
+                      </label>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+
+            <!-- Review Comment -->
+            <div style="margin-bottom: 1.25rem;">
+              <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.5rem;">
+                Feedback / Private Notes
+              </label>
+              <textarea id="comment-{{ a.id }}" name="comment" rows="3" style="width: 100%; padding: 0.6rem; border-radius: 6px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text); font-family: inherit; font-size: 0.9rem;" placeholder="Enter constructive feedback or evaluation notes...">{{ review.comment|default:"" }}</textarea>
+            </div>
+
+            <!-- Actions -->
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+              <button type="button" class="btn btn-secondary" onclick="handleSaveDraft('{{ a.id }}')">
+                Save Draft
+              </button>
+              <button type="button" class="btn btn-primary" onclick="handleSubmitReview('{{ a.id }}')">
+                Submit Official Score
+              </button>
+            </div>
+          </form>
+        </div>
+        {% endwith %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card" style="padding: 3rem; text-align: center;">
+      <div style="font-size: 2.5rem; margin-bottom: 1rem;">⚖️</div>
+      <h2 style="font-size: 1.35rem; font-weight: 600; margin-bottom: 0.5rem;">No Projects Assigned Yet</h2>
+      <p style="color: var(--text-muted); max-width: 500px; margin: 0 auto;">
+        You have no active project assignments in this event. Once the organizers assign projects to your queue, they will appear here for evaluation.
+      </p>
+    </div>
+  {% endif %}
+</div>
+
+<script>
+function highlightRating(input) {
+  const container = input.closest('div');
+  const labels = container.querySelectorAll('label');
+  labels.forEach(lbl => {
+    const radio = lbl.querySelector('input');
+    if (radio.checked) {
+      lbl.style.background = '#2563eb';
+      lbl.style.borderColor = '#2563eb';
+      lbl.style.color = '#ffffff';
+    } else {
+      lbl.style.background = 'transparent';
+      lbl.style.borderColor = 'var(--border)';
+      lbl.style.color = 'var(--text)';
+    }
+  });
+}
+
+// Initial styling on load
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('input[type="radio"]:checked').forEach(radio => {
+    highlightRating(radio);
+  });
+});
+
+function showToast(msg, isSuccess) {
+  const toast = document.getElementById('toast');
+  toast.style.display = 'block';
+  toast.style.background = isSuccess ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+  toast.style.border = isSuccess ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)';
+  toast.style.color = isSuccess ? '#4ade80' : '#f87171';
+  toast.innerHTML = msg;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function gatherScores(assignmentId) {
+  const form = document.getElementById(`form-${assignmentId}`);
+  const scores = {};
+  form.querySelectorAll('input[type="radio"]:checked').forEach(radio => {
+    const critId = radio.name.replace('crit_', '');
+    scores[critId] = parseInt(radio.value, 10);
+  });
+  const comment = document.getElementById(`comment-${assignmentId}`).value;
+  return { scores, comment };
+}
+
+async function handleSaveDraft(assignmentId) {
+  const { scores, comment } = gatherScores(assignmentId);
+  const form = document.getElementById(`form-${assignmentId}`);
+  const csrf = form.querySelector('[name=csrfmiddlewaretoken]')?.value;
+
+  try {
+    const res = await fetch(`/api/v1/assignments/${assignmentId}/review/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrf,
+      },
+      body: JSON.stringify({ scores, comment }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast('<strong>Draft review saved successfully.</strong>', true);
+    } else {
+      showToast(`<strong>Error saving draft:</strong> ${data.detail || JSON.stringify(data)}`, false);
+    }
+  } catch (err) {
+    showToast(`<strong>Network error:</strong> ${err.message}`, false);
+  }
+}
+
+async function handleSubmitReview(assignmentId) {
+  const { scores, comment } = gatherScores(assignmentId);
+  const form = document.getElementById(`form-${assignmentId}`);
+  const csrf = form.querySelector('[name=csrfmiddlewaretoken]')?.value;
+
+  if (!confirm('Are you sure you want to submit your final evaluation? Submitted evaluations count towards the official scores.')) {
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/v1/assignments/${assignmentId}/review/submit/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrf,
+      },
+      body: JSON.stringify({ scores, comment }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast('<strong>Evaluation officially submitted!</strong> Thank you for reviewing.', true);
+      setTimeout(() => window.location.reload(), 1200);
+    } else {
+      showToast(`<strong>Error submitting review:</strong> ${data.detail || JSON.stringify(data)}`, false);
+    }
+  } catch (err) {
+    showToast(`<strong>Network error:</strong> ${err.message}`, false);
+  }
+}
+</script>
+{% endblock %}

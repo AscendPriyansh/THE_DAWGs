@@ -28,6 +28,15 @@ from apps.events.organiser_views import (
     organiser_manage_page,
     api_update_event_settings,
 )
+from apps.judging.views import (
+    judge_workspace_page,
+    organiser_judging_page,
+    api_judge_assignments,
+    api_assignment_review,
+    api_submit_review,
+    api_judge_scores,
+    api_organiser_progress,
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -77,4 +86,17 @@ urlpatterns = [
     path("api/v1/events/<slug:slug>/projects/", api_gallery_list, name="api_gallery_list"),
     path("api/v1/events/<slug:slug>/me/next-action/", api_next_action, name="api_next_action"),
     path("api/v1/projects/<uuid:pk>/", api_project_detail, name="api_project_detail"),
+
+    # Judging Workspace & Coverage UI (M03)
+    path("judging", judge_workspace_page, name="judge_workspace_no_slash"),
+    path("judging/", judge_workspace_page, name="judge_workspace"),
+    path("events/<slug:slug>/judging/", judge_workspace_page, name="event_judge_workspace"),
+    path("events/<slug:slug>/judging/manage/", organiser_judging_page, name="organiser_judging"),
+
+    # Judging REST APIs (M03)
+    path("api/v1/events/<slug:slug>/judging/assignments/", api_judge_assignments, name="api_judge_assignments"),
+    path("api/v1/assignments/<uuid:pk>/review/", api_assignment_review, name="api_assignment_review"),
+    path("api/v1/assignments/<uuid:pk>/review/submit/", api_submit_review, name="api_submit_review"),
+    path("api/v1/events/<slug:slug>/judges/<uuid:judge_user_id>/scores/", api_judge_scores, name="api_judge_scores_rest"),
+    path("api/v1/events/<slug:slug>/organiser/progress/", api_organiser_progress, name="api_organiser_progress"),
 ]

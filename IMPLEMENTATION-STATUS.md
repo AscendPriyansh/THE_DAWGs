@@ -1,10 +1,10 @@
 # Implementation status
 
-Status: M02 milestone complete and verified against PostgreSQL.
+Status: M03 milestone complete and verified against PostgreSQL.
 
-- **Current authorised milestone**: M02 (Participant workspace, team formation & invite links, versioned drafting, optimistic concurrency 409 conflict detection, captain submission receipts, organiser event editing, next actions).
+- **Current authorised milestone**: M03 (Frozen weighted rubric, explicit track grants, conflict checks, judge workspace, private evaluation, peer-score confidentiality, organiser coverage dashboard).
 - **Current implementation location**: `src/backend/` (Django + DRF) and PostgreSQL 16.
-- **Startup URL**: `http://localhost:8000` (Gallery at `http://localhost:8000/projects`, Workspace at `http://localhost:8000/workspace`, Organiser console at `http://localhost:8000/events/sample-hack-2026/manage/`).
+- **Startup URL**: `http://localhost:8000` (Gallery at `/projects`, Workspace at `/workspace`, Judge console at `/judging`, Organiser coverage at `/events/sample-hack-2026/judging/manage/`).
 - **Claimed Tiers in .dogfood.toml**: `["T1"]` (Passing checker for T1 and T2).
 
 ## Completed Behaviour (M01)
@@ -135,6 +135,62 @@ Status: M02 milestone complete and verified against PostgreSQL.
      claimed T1, verified T1 T2
      ```
 
+## Completed Behaviour (M03)
+
+1. **Frozen Weighted Rubric & Criteria Management**:
+   - `freeze_rubric` domain service enforcing at least one criterion with positive weight.
+   - Once frozen, criteria, weights, and rubric configuration are immutable.
+   - Audit logging (`RUBRIC_FROZEN`) with criteria count snapshot.
+   - Pre-assignment invariant: judges can only be assigned to projects after the event rubric is frozen.
+
+2. **Explicit Track Grants & Conflict of Interest Checks**:
+   - Explicit track grants (`JudgeTrackPermission`) required before a judge can be assigned to a project in that track (`assign_judge_to_project`).
+   - Conflict of interest enforcement: a judge who is a member of the project's team cannot be assigned to review that project (`PermissionDenied`).
+   - Cross-event boundary: judge, project, and rubric must all belong to the same event.
+   - Assignment lifecycle: active assignments, audit trail (`JUDGE_ASSIGNED`), and revocation support (`revoke_judge_assignment`).
+
+3. **Private Judging Evaluation & Review Revisions**:
+   - Draft review saving (`save_draft_review`) allows partial criteria scoring (1–5 scale) and notes within the judging window.
+   - Final review submission (`submit_review`) validates complete scoring: exactly one score for every criterion in the frozen rubric, within 1–5 range.
+   - Immutable audit snapshots on every save/submission via `ReviewRevision`.
+   - Event `data_version` incremented on submission, notifying downstream scoring pipelines.
+   - Strict deadline enforcement: when judging window closes, evaluations are rejected (`PermissionDenied`).
+
+4. **Judge Score Confidentiality & Organiser Coverage Dashboard**:
+   - Strict confidentiality enforcement at `/api/v1/events/<slug>/judges/<judge_user_id>/scores/`:
+     - Evaluating judge can access their own scores (`200 OK`).
+     - Peer judges attempting to inspect another judge's scores are strictly rejected with `403 Forbidden`.
+     - Participants attempting to inspect judge scores are strictly rejected with `403 Forbidden`.
+     - Organisers can access judge evaluations for audit and moderation.
+   - Real-time organiser coverage dashboard at `/events/<slug>/judging/manage/` and `/api/v1/events/<slug>/organiser/progress/` tracking required reviews, completed reviews, fully covered projects, partially covered projects, and uncovered projects.
+   - Web judge console at `/judging` and `/events/<slug>/judging/` with assigned project queue, repo/demo evidence links, interactive 1–5 score pills, private feedback notes, and draft/submit actions.
+
+## Commands Actually Executed Against the Application (M03)
+
+1. **Automated Test Suite (pytest)**:
+   - Command: `PYTHONPATH=src/backend .venv/bin/pytest tests/ -v`
+   - Outcome: `22 passed in 76.42s` (covering models, duplicate constraints, fixture importer idempotency, session auth, participant workspace, optimistic locking 409 conflict, captain receipts, rubric freeze, track permissions, conflict of interest, review drafting/submission, peer confidentiality, and organiser coverage dashboard).
+
+2. **Acceptance Checker Verification**:
+   - Command: `python3 tools/run.py .dogfood.toml`
+   - Outcome:
+     ```text
+     DOGFOOD 2026 acceptance report
+     portal: http://localhost:8000
+     claimed: T1
+     fixtures: fixtures.json
+
+     T1  gallery is public ................. PASS
+     T1  project from fixtures shown ....... PASS
+     T1  closed event refuses submissions .. PASS
+     T2  judge sees own scores ............. PASS
+     T2  judge cannot see peer scores ...... PASS
+     T2  participant blocked ............... PASS
+     T2  csv export works .................. PASS
+
+     claimed T1, verified T1 T2
+     ```
+
 ## Environment Limitations & Gaps
 
 1. **Docker / Rootless Podman**:
@@ -142,6 +198,7 @@ Status: M02 milestone complete and verified against PostgreSQL.
    - `podman-compose` is installed in `.venv`.
 2. **Browser Subagent Playwright Context**:
    - Upstream CDN 404 downloading Playwright linux driver in subagent; verified via integration tests and acceptance checker.
-3. **M02 Boundary**:
-   - Milestone M02 is complete. Next milestone in execution plan is M03 (Judging workspace, assignments, criteria, scoring, offline sync draft, judge confidentiality).
+3. **M03 Boundary**:
+   - Milestone M03 is complete. Next milestone in execution plan is M04 (Scoring, independent normalisation checks, result preview/publication, CSV, core UX and adoption baseline).
+
 

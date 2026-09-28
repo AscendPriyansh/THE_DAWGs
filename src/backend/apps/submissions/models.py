@@ -85,3 +85,22 @@ class ProjectRevision(models.Model):
 
     def __str__(self):
         return f"{self.title} (v{self.number})"
+
+
+class RevisionAsset(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    revision = models.ForeignKey(ProjectRevision, on_delete=models.CASCADE, related_name="revision_assets")
+    asset = models.ForeignKey("media_assets.Asset", on_delete=models.CASCADE, related_name="revision_attachments")
+    caption = models.CharField(max_length=240, blank=True)
+    display_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = "revision_assets"
+        constraints = [
+            models.UniqueConstraint(fields=["revision", "asset"], name="unique_revision_asset")
+        ]
+        ordering = ["display_order", "id"]
+
+    def __str__(self):
+        return f"Asset {self.asset_id} on Rev {self.revision_id}"
+

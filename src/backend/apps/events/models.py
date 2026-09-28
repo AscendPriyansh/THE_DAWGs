@@ -181,3 +181,42 @@ class Prize(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class EventInvitation(models.Model):
+    class Role(models.TextChoices):
+        JUDGE = "JUDGE", "Judge"
+        ORGANISER = "ORGANISER", "Organiser"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="staff_invitations")
+    invited_email = models.EmailField(max_length=254)
+    role = models.CharField(max_length=20, choices=Role.choices)
+    token_digest = models.CharField(max_length=64, unique=True)
+    expires_at = models.DateTimeField()
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    accepted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="accepted_event_invitations"
+    )
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="sent_event_invitations"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "event_invitations"
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(accepted_at__isnull=True, accepted_by__isnull=True)
+                    | models.Q(accepted_at__isnull=False, accepted_by__isnull=False)
+                ),
+                name="check_event_invitation_acceptance_pair",
+            )
+        ]
+
+    def __str__(self):
+        return f"Invitation for {self.invited_email} as {self.role} in {self.event.name}"
+

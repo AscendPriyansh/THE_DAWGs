@@ -1,0 +1,393 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Participant Workspace — {{ event.name }}{% endblock %}
+
+{% block content %}
+<div class="main-content" style="max-width: 1100px;">
+  <!-- Top Event & Status Banner -->
+  <div class="detail-container" style="padding: 1.5rem 2rem; margin-bottom: 2rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <span style="font-size: 0.8rem; font-family: var(--font-mono); color: var(--text-subtle); text-transform: uppercase;">
+          Event Workspace &bull; {{ event.slug }}
+        </span>
+        <h1 style="font-size: 1.75rem; font-weight: 800; letter-spacing: -0.02em;">
+          {{ event.name }}
+        </h1>
+      </div>
+      <div style="text-align: right;">
+        <span class="phase-pill {% if is_open %}open{% else %}closed{% endif %}">
+          {% if is_open %}Submissions Open{% else %}Submissions Closed{% endif %}
+        </span>
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
+          Cutoff: {{ event.submissions_closes_at|date:"Y-m-d H:i" }} UTC
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if not team %}
+  <!-- Team Formation Step -->
+  <div class="detail-container" style="padding: 2.5rem; text-align: center; max-width: 600px; margin: 0 auto;">
+    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem;">Create Your Team</h2>
+    <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.75rem; line-height: 1.5;">
+      To draft and submit a project for {{ event.name }}, you must belong to a team (1 to {{ event.max_team_size }} members).
+    </p>
+
+    <form onsubmit="handleCreateTeam(event)">
+      {% csrf_token %}
+      <div style="margin-bottom: 1.25rem; text-align: left;">
+        <label style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.35rem;">Team Name</label>
+        <input type="text" id="new-team-name" class="search-input" style="padding-left: 0.75rem;" required placeholder="e.g. Quantum Pioneers">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem;">
+        Form Team & Proceed to Draft
+      </button>
+    </form>
+  </div>
+
+  {% else %}
+  <!-- Main Workspace Grid -->
+  <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+    <!-- Left Column: Draft Submission Editor -->
+    <div>
+      <!-- Official Submission Receipt / Status -->
+      {% if submitted %}
+      <div style="background-color: #F0FDF4; border: 1px solid #BBF7D0; border-radius: var(--radius-md); padding: 1.25rem 1.5rem; margin-bottom: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="color: var(--accent-green); font-weight: 700;">&#10003; Official Submission Active</span>
+            <span style="font-size: 0.75rem; font-family: var(--font-mono); background: #DCFCE7; color: #166534; padding: 2px 6px; border-radius: 4px;">
+              Revision v{{ submitted.number }}
+            </span>
+          </div>
+          <span style="font-size: 0.8rem; color: #15803D;">{{ project.last_submitted_at|date:"M j, H:i" }} UTC</span>
+        </div>
+        <p style="font-size: 0.85rem; color: #166534; line-height: 1.4;">
+          Your official submission is locked for judging.
+          {% if has_unsubmitted_changes %}
+            <strong style="color: var(--accent-amber); display: block; margin-top: 0.25rem;">
+              &bull; You have newer unsubmitted draft edits below. The official entry remains v{{ submitted.number }} until the captain resubmits.
+            </strong>
+          {% endif %}
+        </p>
+      </div>
+      {% endif %}
+
+      <div class="detail-container" style="padding: 2rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
+          <h2 style="font-size: 1.35rem; font-weight: 700;">Project Submission Editor</h2>
+          <div id="save-status-indicator" style="font-size: 0.8rem; color: var(--text-muted); font-family: var(--font-mono);">
+            {% if has_unsubmitted_changes %}
+              <span style="color: var(--accent-amber); font-weight: 600;">Unsubmitted changes</span>
+            {% elif submitted %}
+              <span style="color: var(--accent-green); font-weight: 600;">Saved</span>
+            {% else %}
+              Draft in progress
+            {% endif %}
+          </div>
+        </div>
+
+        <form id="submission-form" onsubmit="handleSaveDraft(event)">
+          {% csrf_token %}
+          <input type="hidden" id="project-id" value="{{ project.id|default:'' }}">
+          <input type="hidden" id="project-version" value="{{ project.version|default:1 }}">
+
+          <div style="margin-bottom: 1.25rem;">
+            <label style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.35rem;">Project Title *</label>
+            <input
+              type="text"
+              id="draft-title"
+              class="search-input"
+              style="padding-left: 0.75rem;"
+              required
+              placeholder="e.g. Glass Signal"
+              value="{{ draft.title|default:'' }}"
+              oninput="markUnsaved()"
+            >
+          </div>
+
+          <div style="margin-bottom: 1.25rem;">
+            <label style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.35rem;">Track *</label>
+            <select
+              id="draft-track"
+              class="search-input"
+              style="padding-left: 0.75rem; background-color: #FFF;"
+              required
+              onchange="markUnsaved()"
+            >
+              {% for track in tracks %}
+              <option value="{{ track.id }}" {% if draft.track_id == track.id %}selected{% endif %}>
+                {{ track.name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div style="margin-bottom: 1.25rem;">
+            <label style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.35rem;">One-Line Summary * (max 500 chars)</label>
+            <input
+              type="text"
+              id="draft-summary"
+              class="search-input"
+              style="padding-left: 0.75rem;"
+              required
+              maxlength="500"
+              placeholder="Short description of what the project does"
+              value="{{ draft.summary|default:'' }}"
+              oninput="markUnsaved()"
+            >
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+            <div>
+              <label style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.35rem;">Repository URL *</label>
+              <input
+                type="url"
+                id="draft-repo-url"
+                class="search-input"
+                style="padding-left: 0.75rem;"
+                required
+                placeholder="https://github.com/..."
+                value="{{ draft.repo_url|default:'' }}"
+                oninput="markUnsaved()"
+              >
+            </div>
+            <div>
+              <label style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.35rem;">Live Demo URL (optional)</label>
+              <input
+                type="url"
+                id="draft-demo-url"
+                class="search-input"
+                style="padding-left: 0.75rem;"
+                placeholder="https://..."
+                value="{{ draft.demo_url|default:'' }}"
+                oninput="markUnsaved()"
+              >
+            </div>
+          </div>
+
+          <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.35rem;">Description & Documentation (Markdown)</label>
+            <textarea
+              id="draft-description"
+              class="search-input"
+              style="padding: 0.75rem; min-height: 200px; font-family: var(--font-sans); line-height: 1.5;"
+              placeholder="Detailed explanation, architecture notes, how to run, and technical highlights..."
+              oninput="markUnsaved()"
+            >{{ draft.description_md|default:'' }}</textarea>
+          </div>
+
+          <!-- Actions -->
+          <div style="display: flex; gap: 1rem; align-items: center; justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+            <button type="submit" class="btn btn-secondary" id="save-draft-btn">
+              Save Draft
+            </button>
+
+            {% if is_captain %}
+              {% if is_open %}
+                <button type="button" class="btn btn-primary" onclick="handleSubmitOfficialEntry()" id="submit-official-btn">
+                  {% if submitted %}Resubmit Updated Entry{% else %}Submit Official Entry{% endif %} &rarr;
+                </button>
+              {% else %}
+                <span style="font-size: 0.85rem; color: var(--accent-red); font-weight: 600;">
+                  Submissions closed. Official entries are locked.
+                </span>
+              {% endif %}
+            {% else %}
+              <span style="font-size: 0.85rem; color: var(--text-muted);">
+                Only captain ({{ team.captain_user.display_name }}) can submit official entry.
+              </span>
+            {% endif %}
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Right Column: Team Roster & Invitations -->
+    <div>
+      <div class="detail-container" style="padding: 1.75rem; margin-bottom: 2rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h3 style="font-size: 1.15rem; font-weight: 700;">Team: {{ team.name }}</h3>
+          <span style="font-size: 0.75rem; color: var(--text-subtle); font-family: var(--font-mono);">
+            {{ team.members.count }}/{{ event.max_team_size }} Members
+          </span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem;">
+          {% for tm in team.members.all %}
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; background: var(--bg-surface-subtle); border-radius: var(--radius-sm);">
+            <div>
+              <div style="font-weight: 600; font-size: 0.9rem;">{{ tm.user.display_name }}</div>
+              <div style="font-size: 0.75rem; color: var(--text-subtle);">{{ tm.user.email }}</div>
+            </div>
+            {% if tm.user_id == team.captain_user_id %}
+              <span style="font-size: 0.7rem; font-weight: 700; background: #FEF3C7; color: #92400E; padding: 2px 6px; border-radius: 4px;">
+                CAPTAIN
+              </span>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+
+        {% if is_captain and is_open and team.members.count < event.max_team_size %}
+        <div style="border-top: 1px solid var(--border-color); padding-top: 1rem;">
+          <h4 style="font-size: 0.85rem; font-weight: 700; margin-bottom: 0.5rem;">Invite Teammate</h4>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="email" id="invite-email" class="search-input" style="padding: 0.4rem 0.6rem; font-size: 0.85rem;" placeholder="teammate@example.org">
+            <button type="button" class="btn btn-secondary" onclick="handleGenerateInvite()" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">
+              Generate Link
+            </button>
+          </div>
+          <div id="invite-result" style="display: none; margin-top: 0.75rem; font-size: 0.8rem; word-break: break-all; background: #F4F4F5; padding: 0.5rem; border-radius: var(--radius-sm);"></div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Quick Tips -->
+      <div class="detail-container" style="padding: 1.5rem;">
+        <h4 style="font-size: 0.9rem; font-weight: 700; margin-bottom: 0.5rem;">Submission Guidelines</h4>
+        <ul style="font-size: 0.8rem; color: var(--text-muted); padding-left: 1.25rem; line-height: 1.5;">
+          <li>All team members can collaboratively edit the draft.</li>
+          <li>Only the team captain can submit or update the official entry.</li>
+          <li>At cutoff ({{ event.submissions_closes_at|date:"M j, H:i" }} UTC), the last submitted revision freezes.</li>
+          <li>Unsubmitted drafts are not evaluated by judges.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+  let isDirty = false;
+
+  function markUnsaved() {
+    isDirty = true;
+    document.getElementById('save-status-indicator').innerHTML = '<span style="color: var(--accent-amber);">Unsaved changes</span>';
+  }
+
+  async function handleCreateTeam(e) {
+    e.preventDefault();
+    const name = document.getElementById('new-team-name').value;
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+
+    const resp = await fetch('/api/v1/workspace/create-team/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrf
+      },
+      body: JSON.stringify({ name, event_id: '{{ event.id }}' })
+    });
+    if (resp.ok) {
+      window.location.reload();
+    } else {
+      const err = await resp.json();
+      alert(err.detail || 'Failed to create team.');
+    }
+  }
+
+  async function handleSaveDraft(e) {
+    if (e) e.preventDefault();
+    const btn = document.getElementById('save-draft-btn');
+    btn.textContent = 'Saving...';
+
+    const data = {
+      event_id: '{{ event.id }}',
+      project_id: document.getElementById('project-id').value || null,
+      version: document.getElementById('project-version').value,
+      title: document.getElementById('draft-title').value,
+      track_id: document.getElementById('draft-track').value,
+      summary: document.getElementById('draft-summary').value,
+      repo_url: document.getElementById('draft-repo-url').value,
+      demo_url: document.getElementById('draft-demo-url').value,
+      description_md: document.getElementById('draft-description').value,
+    };
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+
+    try {
+      const resp = await fetch('/api/v1/workspace/save-draft/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrf
+        },
+        body: JSON.stringify(data)
+      });
+      const result = await resp.json();
+
+      if (resp.status === 409) {
+        alert('Stale save conflict! A teammate updated this submission. Your local edits remain so you can copy and reconcile.');
+        document.getElementById('save-status-indicator').innerHTML = '<span style="color: var(--accent-red); font-weight: 700;">Conflict: Stale Version</span>';
+      } else if (!resp.ok) {
+        alert(result.detail || 'Save failed.');
+        document.getElementById('save-status-indicator').innerHTML = '<span style="color: var(--accent-red);">Save failed</span>';
+      } else {
+        document.getElementById('project-id').value = result.project_id;
+        document.getElementById('project-version').value = result.version;
+        isDirty = false;
+        document.getElementById('save-status-indicator').innerHTML = '<span style="color: var(--accent-green); font-weight: 600;">Saved (v' + result.revision_number + ')</span>';
+      }
+    } catch (err) {
+      alert('Network error while saving draft.');
+    } finally {
+      btn.textContent = 'Save Draft';
+    }
+  }
+
+  async function handleSubmitOfficialEntry() {
+    if (isDirty) {
+      await handleSaveDraft();
+    }
+    const projectId = document.getElementById('project-id').value;
+    if (!projectId) {
+      alert('Please save your draft first.');
+      return;
+    }
+    if (!confirm('Submit official entry for {{ event.name }}? This freezes your revision and team roster for judging.')) {
+      return;
+    }
+
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    const resp = await fetch('/api/v1/workspace/submit/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrf
+      },
+      body: JSON.stringify({ project_id: projectId, event_id: '{{ event.id }}' })
+    });
+    const result = await resp.json();
+    if (resp.ok) {
+      alert('Submission receipt generated! Official entry is v' + result.receipt.revision_number);
+      window.location.reload();
+    } else {
+      alert(result.detail || 'Submission failed.');
+    }
+  }
+
+  async function handleGenerateInvite() {
+    const email = document.getElementById('invite-email').value;
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+
+    const resp = await fetch('/api/v1/workspace/invite/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrf
+      },
+      body: JSON.stringify({ team_id: '{{ team.id }}', invited_email: email || null })
+    });
+    const data = await resp.json();
+    if (resp.ok) {
+      const resDiv = document.getElementById('invite-result');
+      const fullUrl = window.location.origin + data.invite_url;
+      resDiv.innerHTML = '<strong>Copyable Invite Link:</strong><br><a href="' + data.invite_url + '">' + fullUrl + '</a>';
+      resDiv.style.display = 'block';
+    } else {
+      alert(data.detail || 'Failed to generate invitation.');
+    }
+  }
+</script>
+{% endblock %}

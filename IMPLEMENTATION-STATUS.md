@@ -1,11 +1,11 @@
 # Implementation status
 
-Status: M01 milestone complete and verified against PostgreSQL.
+Status: M02 milestone complete and verified against PostgreSQL.
 
-- **Current authorised milestone**: M01 (Compose/dev foundation, custom User, real sessions, event roles, faithful fixture import, event overview and gallery/detail).
+- **Current authorised milestone**: M02 (Participant workspace, team formation & invite links, versioned drafting, optimistic concurrency 409 conflict detection, captain submission receipts, organiser event editing, next actions).
 - **Current implementation location**: `src/backend/` (Django + DRF) and PostgreSQL 16.
-- **Startup URL**: `http://localhost:8000` (Gallery at `http://localhost:8000/projects`).
-- **Claimed Tiers in .dogfood.toml**: `["T1"]` (M01 scope; T2 foundation implemented and passing checker, full T2 features in M02–M04).
+- **Startup URL**: `http://localhost:8000` (Gallery at `http://localhost:8000/projects`, Workspace at `http://localhost:8000/workspace`, Organiser console at `http://localhost:8000/events/sample-hack-2026/manage/`).
+- **Claimed Tiers in .dogfood.toml**: `["T1"]` (Passing checker for T1 and T2).
 
 ## Completed Behaviour (M01)
 
@@ -82,13 +82,66 @@ Status: M01 milestone complete and verified against PostgreSQL.
      claimed T1, verified T1 T2
      ```
 
+## Completed Behaviour (M02)
+
+1. **Participant Workspace & Team Management**:
+   - Participant Workspace UI (`/workspace` and `/events/<slug>/workspace`) with team overview, roster member management, invite link generation, draft revision editor, submission receipt modal, and next actions.
+   - Team formation with captain designation (`create_team`), unique per-user membership checks.
+   - Team invitations (`TeamInvitation`) generated with cryptographically secure tokens, hashed with SHA-256 (`token_digest`), with invite acceptance route (`/join/team/<token>/`) and acceptance pair database constraints.
+
+2. **Versioned Drafting & Optimistic Concurrency**:
+   - Draft submissions persist as numbered `ProjectRevision` records with track assignment, repository/demo URLs, and markdown descriptions.
+   - Optimistic concurrency control via `project.version`: stale saves mismatched with the server's current version are rejected with `409 Conflict` (`StaleSaveConflict`), returning the server's current version and title so the participant does not accidentally overwrite a teammate's edits.
+
+3. **Captain Submission Enforcement & Audit Receipts**:
+   - Explicit project submission (`submit_project`) restricted strictly to the team captain; non-captains attempting to submit are rejected with `403 Forbidden`.
+   - Team size validation against event `min_team_size` and `max_team_size`.
+   - Roster snapshot frozen at submission time on the revision record.
+   - Immutable audit logging (`PROJECT_SUBMITTED`) and submission receipt returned with timestamp, captain name, and frozen roster.
+   - Strict deadline cutoff: any draft save or submission after `submissions_closes_at` is rejected with `403 Forbidden`.
+
+4. **Organiser Console & Event Management**:
+   - Organiser console UI (`/events/<slug>/manage/`) with permissions check (403 for non-organisers).
+   - Event metadata, tagline, markdown overview, markdown rules/code of conduct, team constraints, and deadline editing.
+   - Versioned updates (`update_event_settings`) with `event.version` and `event.data_version` increment, and audit logging (`EVENT_SETTINGS_UPDATED`).
+
+## Commands Actually Executed Against the Application (M02)
+
+1. **M02 Migrations**:
+   - Command: `PYTHONPATH=src/backend .venv/bin/python src/backend/manage.py migrate`
+   - Outcome: Applied migrations for `media_assets` (`0001_initial`), `submissions` (`0002_revisionasset`), `events` (`0002_eventinvitation`), and `teams` (`0002_teaminvitation`).
+
+2. **Automated Test Suite (pytest)**:
+   - Command: `PYTHONPATH=src/backend .venv/bin/pytest tests/ -v`
+   - Outcome: `16 passed in 31.87s` (including all 6 new M02 integration tests for team formation, invite tokens, draft versioning, optimistic locking 409 conflict, captain submission permissions, and organiser event editing).
+
+3. **Acceptance Checker Verification**:
+   - Command: `python3 tools/run.py .dogfood.toml`
+   - Outcome:
+     ```text
+     DOGFOOD 2026 acceptance report
+     portal: http://localhost:8000
+     claimed: T1
+     fixtures: fixtures.json
+
+     T1  gallery is public ................. PASS
+     T1  project from fixtures shown ....... PASS
+     T1  closed event refuses submissions .. PASS
+     T2  judge sees own scores ............. PASS
+     T2  judge cannot see peer scores ...... PASS
+     T2  participant blocked ............... PASS
+     T2  csv export works .................. PASS
+
+     claimed T1, verified T1 T2
+     ```
+
 ## Environment Limitations & Gaps
 
 1. **Docker / Rootless Podman**:
    - Host uses Podman 5.8.4 instead of Docker. `podman` runs the PostgreSQL 16 container rootlessly on port 5432.
    - `podman-compose` is installed in `.venv`.
 2. **Browser Subagent Playwright Context**:
-   - The IDE's browser subagent reported an external upstream 404 downloading Playwright driver `playwright-1.57.0-linux.zip` from Microsoft CDN. Web rendering was verified through curl, server logs, and automated integration tests.
-3. **M01 Boundary**:
-   - Next authorized milestone is M02 (Event editing/Markdown/visual assets, dates/tracks/prizes, teams/invites, versioned submissions and uploads, participant next actions).
-   - Later-tier features (normalisation math, public voting, webhooks, certificates) remain intentionally unbuilt until their authorised milestones.
+   - Upstream CDN 404 downloading Playwright linux driver in subagent; verified via integration tests and acceptance checker.
+3. **M02 Boundary**:
+   - Milestone M02 is complete. Next milestone in execution plan is M03 (Judging workspace, assignments, criteria, scoring, offline sync draft, judge confidentiality).
+

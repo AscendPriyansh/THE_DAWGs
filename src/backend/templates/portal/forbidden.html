@@ -1,0 +1,19 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Access Denied — DOGFOOD 2026{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 600px; padding: 4rem 1rem; text-align: center;">
+  <div class="card" style="border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.05); padding: 3rem 2rem;">
+    <div style="font-size: 3rem; margin-bottom: 1rem;">🚫</div>
+    <h1 style="font-size: 1.8rem; margin-bottom: 0.75rem; color: #ef4444;">Access Denied (403)</h1>
+    <p style="color: var(--text-muted); margin-bottom: 2rem; font-size: 1.05rem;">
+      {{ message|default:"You do not have permission to access this resource or perform this action." }}
+    </p>
+    <div style="display: flex; gap: 1rem; justify-content: center;">
+      <a href="/" class="btn btn-secondary">Return Home</a>
+      <a href="/workspace" class="btn btn-primary">Go to Workspace</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

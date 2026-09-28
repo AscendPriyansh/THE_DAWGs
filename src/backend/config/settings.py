@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.events",
     "apps.teams",
+    "apps.media_assets",
     "apps.submissions",
     "apps.judging",
     "apps.audit",

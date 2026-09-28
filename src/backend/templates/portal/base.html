@@ -16,8 +16,14 @@
           <span class="brand-badge">2026</span>
         </a>
         <nav class="nav-links">
-          <a href="/" class="nav-link {% if request.path == '/' or '/events/' in request.path and '/projects' not in request.path %}active{% endif %}">Overview</a>
+          <a href="/" class="nav-link {% if request.path == '/' or '/events/' in request.path and '/projects' not in request.path and '/workspace' not in request.path and '/manage' not in request.path %}active{% endif %}">Overview</a>
           <a href="/projects" class="nav-link {% if '/projects' in request.path and '/projects/new' not in request.path %}active{% endif %}">Project Gallery</a>
+          {% if request.user.is_authenticated %}
+            <a href="/workspace" class="nav-link {% if '/workspace' in request.path %}active{% endif %}">Workspace</a>
+            {% if request.user.is_staff or request.user.event_memberships.all %}
+              <a href="/events/dogfood-2026/manage/" class="nav-link {% if '/manage' in request.path %}active{% endif %}">Manage</a>
+            {% endif %}
+          {% endif %}
           <a href="/projects/new" class="nav-link {% if '/projects/new' in request.path %}active{% endif %}">Submit</a>
         </nav>
       </div>

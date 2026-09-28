@@ -1,0 +1,181 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Organiser Management — {{ event.name }} — DOGFOOD 2026{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1000px; padding: 2rem 1rem;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid var(--border); padding-bottom: 1.5rem;">
+    <div>
+      <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;">
+        <span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);">Organiser Console</span>
+        <span class="badge badge-subtle">Version: v{{ event.version }} (Data: v{{ event.data_version }})</span>
+      </div>
+      <h1 style="font-size: 2rem; font-weight: 700; margin: 0;">{{ event.name }} Settings</h1>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+      <a href="/events/{{ event.slug }}/" class="btn btn-secondary">View Public Portal</a>
+      <button type="button" id="save-btn" class="btn btn-primary" onclick="handleSaveSettings()">Save Changes</button>
+    </div>
+  </div>
+
+  <div id="status-banner" style="display: none; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem;"></div>
+
+  <form id="event-settings-form" onsubmit="event.preventDefault(); handleSaveSettings();">
+    {% csrf_token %}
+    <!-- Basic Information -->
+    <div class="card" style="margin-bottom: 2rem; padding: 1.5rem;">
+      <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.25rem; color: var(--text);">Basic Information</h2>
+      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 1rem;">
+        <div>
+          <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.5rem;">Event Name</label>
+          <input type="text" id="event-name" name="name" value="{{ event.name }}" class="form-input" required style="width: 100%; padding: 0.6rem; border-radius: 6px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text);">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.5rem;">Slug</label>
+          <input type="text" value="{{ event.slug }}" disabled class="form-input" style="width: 100%; padding: 0.6rem; border-radius: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-muted); cursor: not-allowed;">
+        </div>
+      </div>
+
+      <div style="margin-bottom: 1rem;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.5rem;">Tagline / Subtitle</label>
+        <input type="text" id="event-tagline" name="tagline" value="{{ event.tagline }}" class="form-input" style="width: 100%; padding: 0.6rem; border-radius: 6px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text);">
+      </div>
+
+      <div style="margin-bottom: 1rem;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.5rem;">Overview / Description (Markdown)</label>
+        <textarea id="event-description" name="description_md" rows="4" style="width: 100%; padding: 0.6rem; border-radius: 6px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text); font-family: inherit;">{{ event.description_md }}</textarea>
+      </div>
+    </div>
+
+    <!-- Rules & Markdown Guidelines -->
+    <div class="card" style="margin-bottom: 2rem; padding: 1.5rem;">
+      <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text);">Official Rules & Code of Conduct</h2>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Formatted in standard Markdown syntax.</p>
+      <textarea id="event-rules-markdown" name="rules_md" rows="8" style="width: 100%; padding: 0.75rem; border-radius: 6px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 0.9rem; line-height: 1.5;">{{ event.rules_md }}</textarea>
+    </div>
+
+    <!-- Team Constraints & Schedule -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+      <div class="card" style="padding: 1.5rem;">
+        <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.25rem; color: var(--text);">Team Constraints</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div>
+            <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.5rem;">Min Team Size</label>
+            <input type="number" id="event-min-team" name="min_team_size" value="{{ event.min_team_size }}" min="1" max="20" style="width: 100%; padding: 0.6rem; border-radius: 6px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text);">
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.5rem;">Max Team Size</label>
+            <input type="number" id="event-max-team" name="max_team_size" value="{{ event.max_team_size }}" min="1" max="20" style="width: 100%; padding: 0.6rem; border-radius: 6px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text);">
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="padding: 1.5rem;">
+        <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.25rem; color: var(--text);">Key Deadlines (UTC)</h2>
+        <div style="margin-bottom: 1rem;">
+          <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.5rem;">Submissions Close</label>
+          <input type="text" id="event-submissions-close" name="submissions_closes_at" value="{{ event.submissions_closes_at|date:'c' }}" placeholder="YYYY-MM-DDTHH:MM:SSZ" style="width: 100%; padding: 0.6rem; border-radius: 6px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono);">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.5rem;">Judging Ends</label>
+          <input type="text" id="event-judging-ends" name="judging_closes_at" value="{{ event.judging_closes_at|date:'c' }}" placeholder="YYYY-MM-DDTHH:MM:SSZ" style="width: 100%; padding: 0.6rem; border-radius: 6px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono);">
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Tracks & Prizes Summary -->
+    <div class="card" style="padding: 1.5rem; margin-bottom: 2rem;">
+      <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem; color: var(--text);">Event Tracks ({{ tracks|length }})</h2>
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+        {% for track in tracks %}
+          <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 6px; padding: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <strong style="color: var(--text); font-size: 0.95rem;">{{ track.name }}</strong>
+              <span class="badge badge-subtle">#{{ track.display_order }}</span>
+            </div>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0;">{{ track.description|truncatewords:15 }}</p>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card" style="padding: 1.5rem; margin-bottom: 2rem;">
+      <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem; color: var(--text);">Event Prizes ({{ prizes|length }})</h2>
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+        {% for prize in prizes %}
+          <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 6px; padding: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <strong style="color: var(--text); font-size: 0.95rem;">{{ prize.name }}</strong>
+              <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24;">{{ prize.cash_value_cents|default:0|floatformat:0 }} cents</span>
+            </div>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0;">{{ prize.description|truncatewords:15 }}</p>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+async function handleSaveSettings() {
+  const btn = document.getElementById('save-btn');
+  const banner = document.getElementById('status-banner');
+  const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+
+  btn.disabled = true;
+  btn.innerText = 'Saving...';
+  banner.style.display = 'none';
+
+  const payload = {
+    name: document.getElementById('event-name').value,
+    tagline: document.getElementById('event-tagline').value,
+    description: document.getElementById('event-description').value,
+    submission_instructions: document.getElementById('event-submission-instructions').value,
+    rules_markdown: document.getElementById('event-rules-markdown').value,
+    min_team_size: parseInt(document.getElementById('event-min-team').value, 10),
+    max_team_size: parseInt(document.getElementById('event-max-team').value, 10),
+  };
+
+  const closeVal = document.getElementById('event-submissions-close').value;
+  if (closeVal) payload.submissions_close = closeVal;
+  const endsVal = document.getElementById('event-judging-ends').value;
+  if (endsVal) payload.judging_ends = endsVal;
+
+  try {
+    const res = await fetch('/api/v1/events/{{ event.slug }}/update-settings/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrf,
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      banner.style.display = 'block';
+      banner.style.background = 'rgba(34, 197, 94, 0.15)';
+      banner.style.border = '1px solid rgba(34, 197, 94, 0.3)';
+      banner.style.color = '#4ade80';
+      banner.innerHTML = `<strong>Settings updated successfully.</strong> Event is at version v${data.version} (Data: v${data.data_version}).`;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      banner.style.display = 'block';
+      banner.style.background = 'rgba(239, 68, 68, 0.15)';
+      banner.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+      banner.style.color = '#f87171';
+      banner.innerHTML = `<strong>Error saving settings:</strong> ${data.detail || JSON.stringify(data)}`;
+    }
+  } catch (err) {
+    banner.style.display = 'block';
+    banner.style.background = 'rgba(239, 68, 68, 0.15)';
+    banner.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+    banner.style.color = '#f87171';
+    banner.innerHTML = `<strong>Network error:</strong> ${err.message}`;
+  } finally {
+    btn.disabled = false;
+    btn.innerText = 'Save Changes';
+  }
+}
+</script>
+{% endblock %}

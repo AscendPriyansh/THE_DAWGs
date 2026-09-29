@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import path, re_path
 from django.views.generic import TemplateView
+from django.http import HttpResponse
 from apps.accounts.views import login_view, logout_view, me_view
 from apps.events.views import (
     event_overview_page,
@@ -97,6 +98,9 @@ from apps.imports.views import (
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+
+    # Health check for Railway / load balancers
+    path("health/", lambda request: HttpResponse("ok"), name="health"),
 
     # Public HTML Web Pages
     path("", event_overview_page, name="home"),

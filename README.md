@@ -150,9 +150,9 @@ python3 tools/run.py .dogfood.toml
 This portal implements **T1, T2, T3, and T4** with independent evidence:
 
 - `tests/integration/` — 11 test modules, 96 tests covering all milestones M01–M11
-- `T3-ACCEPTANCE.md` — community voting, moderation, rate limiting, result snapshots
-- `T4-ACCEPTANCE.md` — REST API, webhooks, certificates, embed gallery, bulk import/export
-- `acceptance-report.txt` — verbatim output of the original acceptance checker
+- `REQUIREMENTS-MATRIX.md` — full mapping of spec requirements to implemented features
+- `SECURITY.md` — security model, threat mitigations, and configuration guide
+- `OPERATIONS.md` — operational runbook: backup, restore, migrations, monitoring
 
 ---
 
@@ -186,10 +186,13 @@ This portal implements **T1, T2, T3, and T4** with independent evidence:
 │       ├── credentials/   # Certificates, signing keys, verification
 │       └── media_assets/  # File upload management
 ├── tests/integration/     # Integration test suite (M01–M11)
-├── deploy/Dockerfile.app
-├── tools/run.py           # Original acceptance checker (unmodified)
-├── fixtures/              # Original supplied fixture data
-├── docker-compose.yml
+├── deploy/Dockerfile.app  # Production Docker image
+├── tools/run.py           # Acceptance checker
+├── fixtures/              # Supplied fixture data
+├── docker-compose.yml     # Full stack: db + app + worker
+├── REQUIREMENTS-MATRIX.md # Spec-to-implementation mapping
+├── SECURITY.md            # Security model and configuration
+├── OPERATIONS.md          # Operational runbook
 └── requirements.txt
 ```
 

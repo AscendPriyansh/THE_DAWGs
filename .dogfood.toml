@@ -1,16 +1,18 @@
-# .dogfood.toml - isolated local development environment
+# .dogfood.toml - hackathon portal acceptance checker configuration
+# After running `seed_demo`, real session cookies are written here automatically.
+# Run: PYTHONPATH=src/backend python src/backend/manage.py seed_demo --output-toml
 [portal]
 base_url = "http://localhost:8000"
 
 [tiers]
 claimed = ["T1", "T2", "T3", "T4"]
-pitch = "THE_DAWGs 2026: Full-featured self-hostable hackathon portal — PostgreSQL-backed, offline-capable, with signed verifiable credentials, community voting, embeddable gallery, and portable bulk import/export. Implements T1 through T4 with 96 integration tests and independent acceptance evidence."
+pitch = "THE_DAWGs 2026: Full-featured self-hostable hackathon portal — PostgreSQL-backed, offline-capable, with signed verifiable credentials, community voting, embeddable gallery, and portable bulk import/export. Implements T1 through T4 with 96 integration tests."
 
 [auth]
-organizer   = "Cookie: session=brlub9ygfaolyh3win8s6ie60sxnzk4i"
-judge_a     = "Cookie: session=mlo4dtfbx9pbn570v30kgukx1kd13xas"
-judge_b     = "Cookie: session=5e5o6gnfjxvn59u7ob6aa29o67kpv5ks"
-participant = "Cookie: session=qrq3b1otykb1v6s312dca5ktkn8xyzlb"
+organizer   = "Cookie: session=<run seed_demo to populate>"
+judge_a     = "Cookie: session=<run seed_demo to populate>"
+judge_b     = "Cookie: session=<run seed_demo to populate>"
+participant = "Cookie: session=<run seed_demo to populate>"
 
 [routes]
 gallery      = "/projects"

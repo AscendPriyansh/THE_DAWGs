@@ -79,7 +79,7 @@ def generate_certificate_pdf(
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=landscape(A4))
     c.setTitle(f"Certificate - {recipient_name}")
-    c.setAuthor("Dogfood Hackathon Portal")
+    c.setAuthor("THE DAWGs Hackathon Portal")
     c.setSubject(f"{kind} Certificate")
 
     # Background

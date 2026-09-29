@@ -1,11 +1,11 @@
 def get_openapi_schema() -> dict:
     """
-    Returns the canonical OpenAPI 3.1 schema for the Dogfood 2026 hackathon portal API.
+    Returns the canonical OpenAPI 3.1 schema for the THE DAWGs 2026 hackathon portal API.
     """
     return {
         "openapi": "3.1.0",
         "info": {
-            "title": "Dogfood 2026 Hackathon Portal REST API",
+            "title": "THE DAWGs 2026 Hackathon Portal REST API",
             "version": "1.0.0",
             "description": "Comprehensive REST API for hackathon events, versioned submissions, private judging, results calculation, community comments, moderation, and scoped integrations.",
         },
@@ -430,7 +430,7 @@ def render_local_docs_html() -> str:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Dogfood 2026 — Local API Documentation</title>
+  <title>THE DAWGs 2026 — Local API Documentation</title>
   <style>
     :root {
       --bg: #09090b;
@@ -532,7 +532,7 @@ def render_local_docs_html() -> str:
 <body>
   <header>
     <div>
-      <h1>Dogfood 2026 Portal API Documentation</h1>
+      <h1>THE DAWGs 2026 Portal API Documentation</h1>
       <div style="font-size: 0.85rem; color: var(--muted); margin-top: 0.25rem;">OpenAPI 3.1.0 Contract & Local Interactive Reference</div>
     </div>
     <div>

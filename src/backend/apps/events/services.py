@@ -65,4 +65,19 @@ def update_event_settings(organiser_user, event, data):
             after_json=after_state,
             reason="Organiser configuration update",
         )
+
+        from apps.integrations.outbox import publish_domain_event
+
+        publish_domain_event(
+            event=event,
+            event_type="event.updated",
+            entity_id=str(event.id),
+            payload={
+                "event_id": str(event.id),
+                "slug": event.slug,
+                "version": event.version,
+                "data_version": event.data_version,
+            },
+        )
+
         return event

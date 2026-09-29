@@ -58,6 +58,41 @@ from apps.integrations.views import (
     api_revoke_api_key,
     api_openapi_schema,
     api_docs_ui,
+    api_event_webhooks,
+    api_webhook_endpoint_detail,
+    api_webhook_deliveries,
+    api_webhook_delivery_detail,
+    api_webhook_delivery_replay,
+    api_background_jobs,
+    api_background_job_detail,
+    organiser_webhooks_page,
+)
+
+from apps.credentials.views import (
+    api_certificate_templates,
+    api_award_decisions,
+    api_eligible_recipients,
+    api_issue_credentials,
+    api_event_credentials,
+    api_credential_detail,
+    api_revoke_credential,
+    api_credential_pdf,
+    api_verify_credential,
+    api_issuer_keys,
+    api_public_consent,
+    verify_credential_page,
+    credentials_page,
+)
+
+from apps.events.embed_views import (
+    embed_gallery_view,
+    api_embed_config,
+)
+from apps.imports.views import (
+    api_export_portable_archive,
+    api_import_preview,
+    api_import_apply,
+    api_import_plan_detail,
 )
 
 urlpatterns = [
@@ -148,5 +183,47 @@ urlpatterns = [
     path("api/v1/schema.json", api_openapi_schema, name="api_openapi_schema"),
     path("api/docs", api_docs_ui, name="api_docs_ui_no_slash"),
     path("api/docs/", api_docs_ui, name="api_docs_ui"),
+
+    # Webhooks & Outbox UI & REST APIs (M08)
+    path("events/<slug:slug>/manage/webhooks/", organiser_webhooks_page, name="organiser_webhooks"),
+    path("api/v1/events/<slug:slug>/webhooks/", api_event_webhooks, name="api_event_webhooks"),
+    path("api/v1/events/<slug:slug>/webhooks/<uuid:endpoint_id>/", api_webhook_endpoint_detail, name="api_webhook_endpoint_detail"),
+    path("api/v1/events/<slug:slug>/webhooks/<uuid:endpoint_id>/deliveries/", api_webhook_deliveries, name="api_webhook_deliveries"),
+    path("api/v1/events/<slug:slug>/webhooks/deliveries/<uuid:delivery_id>/", api_webhook_delivery_detail, name="api_webhook_delivery_detail"),
+    path("api/v1/events/<slug:slug>/webhooks/deliveries/<uuid:delivery_id>/replay/", api_webhook_delivery_replay, name="api_webhook_delivery_replay"),
+
+    # Background Jobs REST APIs (M08)
+    path("api/v1/events/<slug:slug>/jobs/", api_background_jobs, name="api_background_jobs"),
+    path("api/v1/events/<slug:slug>/jobs/<uuid:job_id>/", api_background_job_detail, name="api_background_job_detail"),
+
+    # Credentials & Certificates (M09)
+    path("events/<slug:slug>/credentials/", credentials_page, name="event_credentials"),
+    path("api/v1/events/<slug:slug>/credentials/templates/", api_certificate_templates, name="api_certificate_templates"),
+    path("api/v1/events/<slug:slug>/credentials/awards/", api_award_decisions, name="api_award_decisions"),
+    path("api/v1/events/<slug:slug>/credentials/eligible/", api_eligible_recipients, name="api_eligible_recipients"),
+    path("api/v1/events/<slug:slug>/credentials/issue/", api_issue_credentials, name="api_issue_credentials"),
+    path("api/v1/events/<slug:slug>/credentials/", api_event_credentials, name="api_event_credentials"),
+    path("api/v1/events/<slug:slug>/credentials/<uuid:credential_id>/", api_credential_detail, name="api_credential_detail"),
+    path("api/v1/events/<slug:slug>/credentials/<uuid:credential_id>/revoke/", api_revoke_credential, name="api_revoke_credential"),
+    path("api/v1/events/<slug:slug>/credentials/<uuid:credential_id>/pdf/", api_credential_pdf, name="api_credential_pdf"),
+    path("api/v1/events/<slug:slug>/consent/", api_public_consent, name="api_public_consent"),
+
+    # Public verification (M09)
+    path("verify/<uuid:credential_id>", verify_credential_page, name="verify_credential"),
+    path("verify/<uuid:credential_id>/", verify_credential_page, name="verify_credential_slash"),
+    path("api/v1/verify/<uuid:credential_id>/", api_verify_credential, name="api_verify_credential"),
+    path("api/v1/issuer/keys/", api_issuer_keys, name="api_issuer_keys"),
+
+    # Embeddable Public Gallery (M10)
+    path("embed/events/<slug:slug>/", embed_gallery_view, name="embed_gallery"),
+    path("embed/events/<slug:slug>", embed_gallery_view, name="embed_gallery_no_slash"),
+    path("api/v1/events/<slug:slug>/embed-config/", api_embed_config, name="api_embed_config"),
+
+    # Portable Bulk Import & Export (M10)
+    path("api/v1/events/<slug:slug>/exports/portable/", api_export_portable_archive, name="api_export_portable_archive"),
+    path("api/v1/events/import/preview/", api_import_preview, name="api_import_preview"),
+    path("api/v1/events/import/apply/", api_import_apply, name="api_import_apply"),
+    path("api/v1/events/import/plans/<uuid:plan_id>/", api_import_plan_detail, name="api_import_plan_detail"),
 ]
+
 

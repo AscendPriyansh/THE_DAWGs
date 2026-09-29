@@ -146,6 +146,21 @@ def submit_project(user, event, project_id):
             reason="Explicit captain submission",
         )
 
+        from apps.integrations.outbox import publish_domain_event
+
+        publish_domain_event(
+            event=event,
+            event_type="submission.created" if is_first else "submission.updated",
+            entity_id=str(project.id),
+            payload={
+                "project_id": str(project.id),
+                "title": draft.title,
+                "revision_number": draft.number,
+                "state": project.state,
+                "submitted_at": now.isoformat(),
+            },
+        )
+
         receipt = {
             "project_id": str(project.id),
             "revision_number": draft.number,

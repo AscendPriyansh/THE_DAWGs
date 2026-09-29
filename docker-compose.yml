@@ -40,6 +40,30 @@ services:
       db:
         condition: service_healthy
 
+  worker:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.app
+    container_name: dogfood-worker
+    restart: unless-stopped
+    command: ["python", "src/backend/manage.py", "run_worker"]
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings
+      DJANGO_DEBUG: "False"
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dogfood-production-secret-replace-me-2026}
+      POSTGRES_DB: ${POSTGRES_DB:-dogfood}
+      POSTGRES_USER: ${POSTGRES_USER:-dogfood}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dogfood}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+    volumes:
+      - media:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      app:
+        condition: service_started
+
 volumes:
   pgdata:
   media:

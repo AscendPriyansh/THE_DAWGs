@@ -341,6 +341,21 @@ def submit_review(
             },
         )
 
+        from apps.integrations.outbox import publish_domain_event
+
+        publish_domain_event(
+            event=event,
+            event_type="review.submitted",
+            entity_id=str(review.id),
+            payload={
+                "review_id": str(review.id),
+                "assignment_id": str(assignment.id),
+                "project_id": str(assignment.project_id),
+                "status": review.status,
+                "submitted_at": review.submitted_at.isoformat(),
+            },
+        )
+
     return review
 
 

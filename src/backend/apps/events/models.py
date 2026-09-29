@@ -220,3 +220,33 @@ class EventInvitation(models.Model):
     def __str__(self):
         return f"Invitation for {self.invited_email} as {self.role} in {self.event.name}"
 
+
+class EmbedConfiguration(models.Model):
+    class Theme(models.TextChoices):
+        LIGHT = "LIGHT", "Light"
+        DARK = "DARK", "Dark"
+        AUTO = "AUTO", "Auto"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    event = models.OneToOneField(Event, on_delete=models.CASCADE, related_name="embed_configuration")
+    enabled = models.BooleanField(default=True)
+    allowed_parent_origins_json = models.JSONField(default=list)
+    theme = models.CharField(max_length=10, choices=Theme.choices, default=Theme.AUTO)
+    default_track = models.ForeignKey(Track, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    show_search = models.BooleanField(default=True)
+    version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "embed_configurations"
+
+    def clean(self):
+        super().clean()
+        if self.default_track and self.default_track.event_id != self.event_id:
+            from django.core.exceptions import ValidationError
+            raise ValidationError("default_track must belong to the same event.")
+
+    def __str__(self):
+        return f"EmbedConfiguration for {self.event.slug} (enabled={self.enabled})"
+

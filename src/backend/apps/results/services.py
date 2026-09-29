@@ -313,4 +313,18 @@ def publish_results(
             reason="Organiser published official results",
         )
 
+        from apps.integrations.outbox import publish_domain_event
+
+        publish_domain_event(
+            event=event,
+            event_type="results.published",
+            entity_id=str(pub.id),
+            payload={
+                "publication_id": str(pub.id),
+                "publication_number": pub.number,
+                "result_run_id": str(result_run.id),
+                "published_at": pub.published_at.isoformat() if getattr(pub, "published_at", None) else now.isoformat(),
+            },
+        )
+
     return pub

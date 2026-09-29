@@ -627,6 +627,19 @@ def resolve_moderation_case(
         },
     )
 
+    from apps.integrations.outbox import publish_domain_event
+
+    publish_domain_event(
+        event=event,
+        event_type="community.moderated",
+        entity_id=str(case.id),
+        payload={
+            "case_id": str(case.id),
+            "decision": decision,
+            "resolved_at": now.isoformat(),
+        },
+    )
+
     return case
 
 

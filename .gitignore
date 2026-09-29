@@ -8,3 +8,5 @@ staticfiles/
 media/
 *.dump
 .env
+signing_keys/
+*.pem

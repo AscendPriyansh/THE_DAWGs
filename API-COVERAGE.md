@@ -64,6 +64,16 @@ All business actions in the Dogfood 2026 Hackathon Portal are implemented as fir
 | **Integrations** | Issue API Key | Settings / API Keys | `POST /api/v1/events/<slug>/api-keys/` | Authenticated | `integrations:manage` | `issue_api_credential()` | `test_scoped_api_key_issuance_and_revocation` |
 | **Integrations** | List API Keys | Settings / API Keys | `GET /api/v1/events/<slug>/api-keys/` | Authenticated | `integrations:manage` | Key resolver | `test_scoped_api_key_issuance_and_revocation` |
 | **Integrations** | Revoke API Key | Settings / API Keys | `DELETE /api/v1/events/<slug>/api-keys/<id>/` | Owner / Organiser | `integrations:manage` | `revoke_api_credential()` | `test_scoped_api_key_issuance_and_revocation` |
+| **Webhooks** | List Webhooks | `/events/<slug>/manage/webhooks/` | `GET /api/v1/events/<slug>/webhooks/` | Organiser | `integrations:manage` | Endpoint reader | `test_webhook_endpoint_crud_and_ssrf` |
+| **Webhooks** | Create Webhook | `/events/<slug>/manage/webhooks/` | `POST /api/v1/events/<slug>/webhooks/` | Organiser | `integrations:manage` | Endpoint creator | `test_webhook_endpoint_crud_and_ssrf` |
+| **Webhooks** | Update Webhook | `/events/<slug>/manage/webhooks/` | `PATCH /api/v1/events/<slug>/webhooks/<id>/` | Organiser | `integrations:manage` | Endpoint editor | `test_webhook_endpoint_crud_and_ssrf` |
+| **Webhooks** | Delete Webhook | `/events/<slug>/manage/webhooks/` | `DELETE /api/v1/events/<slug>/webhooks/<id>/` | Organiser | `integrations:manage` | Endpoint deleter | `test_webhook_endpoint_crud_and_ssrf` |
+| **Webhooks** | List Deliveries | Delivery diagnostics | `GET /api/v1/events/<slug>/webhooks/<id>/deliveries/` | Organiser | `integrations:manage` | Delivery reader | `test_webhook_delivery_state_machine` |
+| **Webhooks** | Delivery Detail | Delivery diagnostics | `GET /api/v1/events/<slug>/webhooks/deliveries/<id>/` | Organiser | `integrations:manage` | Delivery reader | `test_webhook_delivery_state_machine` |
+| **Webhooks** | Replay Delivery | Delivery diagnostics | `POST /api/v1/events/<slug>/webhooks/deliveries/<id>/replay/` | Organiser | `integrations:manage` | `replay_webhook_delivery()` | `test_webhook_delivery_replay_generation` |
+| **Jobs** | List Jobs | Background jobs console | `GET /api/v1/events/<slug>/jobs/` | Authenticated | `integrations:manage` | Job reader | `test_background_job_execution_and_authority` |
+| **Jobs** | Enqueue Job | Background jobs console | `POST /api/v1/events/<slug>/jobs/` | Organiser | `data:export` / `credentials:issue` | `submit_background_job()` | `test_background_job_execution_and_authority` |
+| **Jobs** | Job Details | Background jobs console | `GET /api/v1/events/<slug>/jobs/<id>/` | Requester / Organiser | `integrations:manage` | Job reader | `test_background_job_execution_and_authority` |
 | **Docs** | OpenAPI JSON | Direct API call | `GET /api/v1/schema.json` | Public | None | `api_openapi_schema()` | `test_openapi_schema_and_docs_endpoints` |
 | **Docs** | Interactive Docs | `/api/docs` | `GET /api/docs` | Public | None | `api_docs_ui()` | `test_openapi_schema_and_docs_endpoints` |
 

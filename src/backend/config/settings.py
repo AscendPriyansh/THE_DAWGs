@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "apps.imports",
     "apps.voting",
     "apps.integrations",
+    "apps.credentials",
 ]
 
 MIDDLEWARE = [
@@ -112,3 +113,22 @@ REST_FRAMEWORK = {
         "rest_framework.renderers.JSONRenderer",
     ],
 }
+
+# Webhook & Worker Configuration (M08)
+import hashlib
+import base64
+
+WEBHOOK_ENCRYPTION_KEY = os.environ.get("DOGFOOD_WEBHOOK_ENCRYPTION_KEY")
+if not WEBHOOK_ENCRYPTION_KEY:
+    # Derive a stable 32-byte urlsafe base64 key from SECRET_KEY
+    _digest = hashlib.sha256(f"webhook-secret-salt:{SECRET_KEY}".encode("utf-8")).digest()
+    WEBHOOK_ENCRYPTION_KEY = base64.urlsafe_b64encode(_digest).decode("ascii")
+
+# Allowed webhook hosts for local/offline testing or demo receivers
+_raw_allowed_hosts = os.environ.get("DOGFOOD_ALLOWED_WEBHOOK_HOSTS", "testserver,localhost,127.0.0.1")
+DOGFOOD_ALLOWED_WEBHOOK_HOSTS = [h.strip() for h in _raw_allowed_hosts.split(",") if h.strip()]
+
+WEBHOOK_TIMEOUT_CONNECT = int(os.environ.get("DOGFOOD_WEBHOOK_TIMEOUT_CONNECT", "5"))
+WEBHOOK_TIMEOUT_READ = int(os.environ.get("DOGFOOD_WEBHOOK_TIMEOUT_READ", "10"))
+WEBHOOK_MAX_RESPONSE_BYTES = int(os.environ.get("DOGFOOD_WEBHOOK_MAX_RESPONSE_BYTES", "65536"))
+WEBHOOK_LEASE_DURATION_SECONDS = int(os.environ.get("DOGFOOD_WEBHOOK_LEASE_DURATION_SECONDS", "60"))

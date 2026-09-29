@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ event.name }} — Project Gallery</title>
+  <style>
+    :root {
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      
+      /* Light mode defaults */
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --card-hover-bg: #f1f5f9;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --accent: #4f46e5;
+      --accent-hover: #4338ca;
+      --badge-bg: #e0e7ff;
+      --badge-text: #3730a3;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0b0f19;
+        --card-bg: #151d30;
+        --card-hover-bg: #1c2640;
+        --border: #263352;
+        --text: #f8fafc;
+        --text-muted: #94a3b8;
+        --accent: #6366f1;
+        --accent-hover: #818cf8;
+        --badge-bg: rgba(99, 102, 241, 0.2);
+        --badge-text: #a5b4fc;
+        --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+      }
+    }
+
+    body.theme-light {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --card-hover-bg: #f1f5f9;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --accent: #4f46e5;
+      --accent-hover: #4338ca;
+      --badge-bg: #e0e7ff;
+      --badge-text: #3730a3;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    body.theme-dark {
+      --bg: #0b0f19;
+      --card-bg: #151d30;
+      --card-hover-bg: #1c2640;
+      --border: #263352;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --badge-bg: rgba(99, 102, 241, 0.2);
+      --badge-text: #a5b4fc;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      font-family: var(--font-family);
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      height: 100%;
+      overflow-y: auto;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .embed-container {
+      padding: 1rem 1.25rem 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .gallery-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .gallery-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .event-badge {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.2rem 0.5rem;
+      border-radius: 9999px;
+      background: var(--badge-bg);
+      color: var(--badge-text);
+    }
+
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      margin-bottom: 1.25rem;
+    }
+
+    .search-box {
+      position: relative;
+      flex: 1 1 200px;
+      max-width: 380px;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 0.5rem 0.75rem 0.5rem 2rem;
+      font-size: 0.875rem;
+      background: var(--card-bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .search-input:focus-visible {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 0.65rem;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    .track-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      align-items: center;
+    }
+
+    .track-pill {
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 0.35rem 0.75rem;
+      border-radius: 9999px;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      color: var(--text-muted);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .track-pill:hover, .track-pill:focus-visible {
+      color: var(--text);
+      border-color: var(--accent);
+    }
+
+    .track-pill.active {
+      background: var(--accent);
+      color: #ffffff;
+      border-color: var(--accent);
+    }
+
+    .projects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+
+    .project-card {
+      display: flex;
+      flex-direction: column;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.15rem;
+      text-decoration: none;
+      color: inherit;
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      position: relative;
+    }
+
+    .project-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--accent);
+      background: var(--card-hover-bg);
+    }
+
+    .project-card:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .track-tag {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 0.2rem 0.45rem;
+      border-radius: 4px;
+      background: var(--badge-bg);
+      color: var(--badge-text);
+    }
+
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+      line-height: 1.35;
+      color: var(--text);
+    }
+
+    .card-summary {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+      flex-grow: 1;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+
+    .card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.8rem;
+    }
+
+    .team-name {
+      color: var(--text-muted);
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 160px;
+    }
+
+    .view-link {
+      font-weight: 600;
+      color: var(--accent);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .empty-state {
+      grid-column: 1 / -1;
+      padding: 3rem 1.5rem;
+      text-align: center;
+      background: var(--card-bg);
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+    }
+
+    .empty-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+    }
+
+    .empty-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body class="theme-{{ theme|default:'auto' }}">
+  <div class="embed-container" id="embed-root">
+    <header class="gallery-header">
+      <div class="gallery-title">
+        <span>{{ event.name }}</span>
+        <span class="event-badge">{{ projects|length }} Projects</span>
+      </div>
+    </header>
+
+    <div class="controls-row">
+      {% if show_search %}
+      <div class="search-box">
+        <span class="search-icon" aria-hidden="true">&#x1F50D;</span>
+        <input
+          type="text"
+          id="gallery-search"
+          class="search-input"
+          placeholder="Search projects..."
+          value="{{ query }}"
+          aria-label="Search projects by title or team"
+          oninput="handleFilter()"
+        >
+      </div>
+      {% endif %}
+
+      <nav class="track-filters" aria-label="Track filters">
+        <button
+          type="button"
+          class="track-pill {% if not selected_track %}active{% endif %}"
+          onclick="setTrackFilter('')"
+        >
+          All Tracks
+        </button>
+        {% for track in tracks %}
+        <button
+          type="button"
+          class="track-pill {% if selected_track == track.slug %}active{% endif %}"
+          data-track="{{ track.slug }}"
+          onclick="setTrackFilter('{{ track.slug }}')"
+        >
+          {{ track.name }}
+        </button>
+        {% endfor %}
+      </nav>
+    </div>
+
+    <main class="projects-grid" id="projects-grid" role="list">
+      {% for project in projects %}
+      <a
+        href="/projects/{{ project.id }}/"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="project-card"
+        role="listitem"
+        data-title="{{ project.submitted_revision.title|lower }}"
+        data-summary="{{ project.submitted_revision.summary|lower }}"
+        data-team="{{ project.team.name|lower }}"
+        data-track="{{ project.submitted_revision.track.slug }}"
+      >
+        <div class="card-top">
+          <span class="track-tag">{{ project.submitted_revision.track.name }}</span>
+        </div>
+        <h2 class="card-title">{{ project.submitted_revision.title }}</h2>
+        <p class="card-summary">{{ project.submitted_revision.summary }}</p>
+        <div class="card-footer">
+          <span class="team-name" title="{{ project.team.name }}">{{ project.team.name }}</span>
+          <span class="view-link">View &rarr;</span>
+        </div>
+      </a>
+      {% empty %}
+      <div class="empty-state">
+        <div class="empty-title">No projects submitted yet</div>
+        <div class="empty-desc">Check back once entries have been officially submitted.</div>
+      </div>
+      {% endfor %}
+    </main>
+  </div>
+
+  <script>
+    const nonce = "{{ nonce }}";
+    let activeTrack = '{{ selected_track }}';
+
+    function setTrackFilter(trackSlug) {
+      activeTrack = trackSlug;
+      document.querySelectorAll('.track-pill').forEach(btn => {
+        const t = btn.getAttribute('data-track') || '';
+        if (t === trackSlug) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+      handleFilter();
+    }
+
+    function handleFilter() {
+      const searchInput = document.getElementById('gallery-search');
+      const q = searchInput ? searchInput.value.toLowerCase().trim() : '';
+      const cards = document.querySelectorAll('.project-card');
+      let visible = 0;
+
+      cards.forEach(card => {
+        const title = card.getAttribute('data-title') || '';
+        const summary = card.getAttribute('data-summary') || '';
+        const team = card.getAttribute('data-team') || '';
+        const track = card.getAttribute('data-track') || '';
+
+        const matchesTrack = !activeTrack || track === activeTrack;
+        const matchesQuery = !q || title.includes(q) || summary.includes(q) || team.includes(q);
+
+        if (matchesTrack && matchesQuery) {
+          card.style.display = 'flex';
+          visible++;
+        } else {
+          card.style.display = 'none';
+        }
+      });
+
+      sendResizeNotification();
+    }
+
+    // Auto-resize postMessage with strict bounded height (240–1600 px)
+    function sendResizeNotification() {
+      try {
+        const root = document.getElementById('embed-root');
+        if (!root) return;
+        const scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
+        const boundedHeight = Math.max(240, Math.min(1600, scrollHeight + 20));
+
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage({
+            type: "dogfood:embed:resize",
+            nonce: nonce,
+            height: boundedHeight
+          }, "*");
+        }
+      } catch (e) {
+        // Cross-origin safe
+      }
+    }
+
+    window.addEventListener('load', sendResizeNotification);
+    window.addEventListener('resize', sendResizeNotification);
+
+    // Watch for DOM changes
+    if (window.MutationObserver) {
+      const observer = new MutationObserver(sendResizeNotification);
+      observer.observe(document.body, { attributes: true, childList: true, subtree: true });
+    }
+  </script>
+</body>
+</html>

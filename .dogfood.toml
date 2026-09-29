@@ -3,8 +3,8 @@
 base_url = "http://localhost:8000"
 
 [tiers]
-claimed = ["T1"]
-pitch = "Dogfood 2026: Fast, resilient hackathon portal with PostgreSQL persistence and faithful fixture audit."
+claimed = ["T1", "T2", "T3", "T4"]
+pitch = "THE_DAWGs 2026: Full-featured self-hostable hackathon portal — PostgreSQL-backed, offline-capable, with signed verifiable credentials, community voting, embeddable gallery, and portable bulk import/export. Implements T1 through T4 with 96 integration tests and independent acceptance evidence."
 
 [auth]
 organizer   = "Cookie: session=brlub9ygfaolyh3win8s6ie60sxnzk4i"

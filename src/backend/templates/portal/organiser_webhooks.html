@@ -1,0 +1,337 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Webhooks & Outbox — {{ event.name }} — DOGFOOD 2026{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1100px; padding: 2rem 1rem;">
+  <!-- Header -->
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid var(--border); padding-bottom: 1.5rem;">
+    <div>
+      <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;">
+        <span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);">Organiser Console</span>
+        <span class="badge badge-subtle">Outbox & Webhooks</span>
+      </div>
+      <h1 style="font-size: 2rem; font-weight: 700; margin: 0;">{{ event.name }} Webhooks</h1>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+      <a href="/events/{{ event.slug }}/manage/" class="btn btn-secondary">Event Settings</a>
+      <a href="/api/docs" target="_blank" class="btn btn-secondary">OpenAPI Docs</a>
+      <button type="button" class="btn btn-primary" onclick="showAddWebhookModal()">+ Add Webhook</button>
+    </div>
+  </div>
+
+  <div id="status-banner" style="display: none; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem;"></div>
+
+  <!-- Secret Reveal Box (shown only after creation) -->
+  <div id="secret-reveal-card" style="display: none; margin-bottom: 2rem; padding: 1.5rem; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 8px;">
+    <h3 style="color: #4ade80; margin: 0 0 0.5rem 0; font-size: 1.1rem; font-weight: 600;">Webhook Endpoint Created Successfully</h3>
+    <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.75rem;">
+      Please copy your webhook signing secret now. It is encrypted in the database and <strong>will never be displayed again</strong>.
+    </p>
+    <div style="display: flex; gap: 0.75rem; align-items: center;">
+      <input type="text" id="secret-display-input" readonly style="flex: 1; padding: 0.6rem; border-radius: 6px; background: rgba(0,0,0,0.4); border: 1px solid var(--border); color: #4ade80; font-family: monospace; font-size: 0.95rem;">
+      <button type="button" class="btn btn-primary" onclick="copySecretToClipboard()">Copy Secret</button>
+      <button type="button" class="btn btn-secondary" onclick="document.getElementById('secret-reveal-card').style.display='none'">Dismiss</button>
+    </div>
+  </div>
+
+  <!-- Configured Endpoints Card -->
+  <div class="card" style="margin-bottom: 2.5rem; padding: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+      <h2 style="font-size: 1.25rem; font-weight: 600; margin: 0; color: var(--text);">Configured Endpoints</h2>
+      <span style="font-size: 0.85rem; color: var(--text-muted);">{{ endpoints|length }} registered</span>
+    </div>
+
+    {% if endpoints %}
+    <div style="overflow-x: auto;">
+      <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+        <thead>
+          <tr style="border-bottom: 1px solid var(--border); color: var(--text-muted);">
+            <th style="padding: 0.75rem 0.5rem;">Destination URL</th>
+            <th style="padding: 0.75rem 0.5rem;">Status</th>
+            <th style="padding: 0.75rem 0.5rem;">Subscribed Events</th>
+            <th style="padding: 0.75rem 0.5rem;">Version</th>
+            <th style="padding: 0.75rem 0.5rem; text-align: right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ep in endpoints %}
+          <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);" id="row-endpoint-{{ ep.id }}">
+            <td style="padding: 0.75rem 0.5rem; font-family: monospace; word-break: break-all;">
+              {{ ep.url }}
+            </td>
+            <td style="padding: 0.75rem 0.5rem;">
+              {% if ep.status == 'ACTIVE' %}
+              <span class="badge" style="background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3);">ACTIVE</span>
+              {% else %}
+              <span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);">PAUSED</span>
+              {% endif %}
+            </td>
+            <td style="padding: 0.75rem 0.5rem; color: var(--text-muted);">
+              {% for t in ep.allowed_event_types %}
+              <span class="badge badge-subtle" style="font-size: 0.75rem; margin-right: 0.25rem;">{{ t }}</span>
+              {% endfor %}
+            </td>
+            <td style="padding: 0.75rem 0.5rem; color: var(--text-muted);">v{{ ep.version }}</td>
+            <td style="padding: 0.75rem 0.5rem; text-align: right;">
+              {% if ep.status == 'ACTIVE' %}
+              <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="toggleEndpointStatus('{{ ep.id }}', 'PAUSED')">Pause</button>
+              {% else %}
+              <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="toggleEndpointStatus('{{ ep.id }}', 'ACTIVE')">Activate</button>
+              {% endif %}
+              <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; color: #f87171; margin-left: 0.5rem;" onclick="deleteEndpoint('{{ ep.id }}')">Delete</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div style="padding: 2rem; text-align: center; color: var(--text-muted);">
+      <p style="margin: 0;">No webhook endpoints configured for this event. Register one to receive real-time outbox notifications.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Recent Deliveries Card -->
+  <div class="card" style="padding: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+      <h2 style="font-size: 1.25rem; font-weight: 600; margin: 0; color: var(--text);">Recent Outbox Deliveries</h2>
+      <span style="font-size: 0.85rem; color: var(--text-muted);">Last {{ recent_deliveries|length }} deliveries</span>
+    </div>
+
+    {% if recent_deliveries %}
+    <div style="overflow-x: auto;">
+      <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+        <thead>
+          <tr style="border-bottom: 1px solid var(--border); color: var(--text-muted);">
+            <th style="padding: 0.6rem 0.5rem;">Delivery ID</th>
+            <th style="padding: 0.6rem 0.5rem;">Event Type</th>
+            <th style="padding: 0.6rem 0.5rem;">Destination</th>
+            <th style="padding: 0.6rem 0.5rem;">State</th>
+            <th style="padding: 0.6rem 0.5rem;">Attempts</th>
+            <th style="padding: 0.6rem 0.5rem;">Gen</th>
+            <th style="padding: 0.6rem 0.5rem;">Last Status</th>
+            <th style="padding: 0.6rem 0.5rem;">Created</th>
+            <th style="padding: 0.6rem 0.5rem; text-align: right;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in recent_deliveries %}
+          <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);" id="delivery-row-{{ d.id }}">
+            <td style="padding: 0.6rem 0.5rem; font-family: monospace;">{{ d.id|stringformat:".8s" }}...</td>
+            <td style="padding: 0.6rem 0.5rem;"><span class="badge badge-subtle">{{ d.domain_event.type }}</span></td>
+            <td style="padding: 0.6rem 0.5rem; font-family: monospace; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              {{ d.endpoint.url }}
+            </td>
+            <td style="padding: 0.6rem 0.5rem;">
+              {% if d.state == 'SUCCEEDED' %}
+              <span class="badge" style="background: rgba(34, 197, 94, 0.15); color: #4ade80;">SUCCEEDED</span>
+              {% elif d.state == 'PENDING' %}
+              <span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa;">PENDING</span>
+              {% elif d.state == 'LEASED' %}
+              <span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">LEASED</span>
+              {% elif d.state == 'RETRY' %}
+              <span class="badge" style="background: rgba(234, 179, 8, 0.15); color: #facc15;">RETRY</span>
+              {% elif d.state == 'DEAD' %}
+              <span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #f87171;">DEAD</span>
+              {% else %}
+              <span class="badge badge-subtle">{{ d.state }}</span>
+              {% endif %}
+            </td>
+            <td style="padding: 0.6rem 0.5rem;">{{ d.lifetime_attempt_count }}</td>
+            <td style="padding: 0.6rem 0.5rem;">g{{ d.replay_generation }}</td>
+            <td style="padding: 0.6rem 0.5rem; font-family: monospace;">
+              {% if d.last_status %}
+                <span style="color: {% if d.last_status < 400 %}#4ade80{% else %}#f87171{% endif %};">{{ d.last_status }}</span>
+              {% elif d.last_error_class %}
+                <span style="color: #f87171;">{{ d.last_error_class }}</span>
+              {% else %}
+                <span style="color: var(--text-muted);">-</span>
+              {% endif %}
+            </td>
+            <td style="padding: 0.6rem 0.5rem; color: var(--text-muted);">{{ d.created_at|date:"M d, H:i:s" }}</td>
+            <td style="padding: 0.6rem 0.5rem; text-align: right;">
+              {% if d.state == 'DEAD' or d.state == 'FAILED' or d.state == 'SUCCEEDED' %}
+              <button class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="replayDelivery('{{ d.id }}')">Replay</button>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div style="padding: 2rem; text-align: center; color: var(--text-muted);">
+      <p style="margin: 0;">No outbox deliveries have been triggered yet for this event.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Modal: Add Webhook -->
+<div id="add-webhook-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 999; justify-content: center; align-items: center; padding: 1rem;">
+  <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; width: 100%; max-width: 520px; padding: 1.5rem;">
+    <h3 style="margin: 0 0 1rem 0; font-size: 1.25rem; font-weight: 600;">Register Webhook Endpoint</h3>
+    <form id="add-webhook-form" onsubmit="event.preventDefault(); submitAddWebhook();">
+      {% csrf_token %}
+      <div style="margin-bottom: 1rem;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.4rem;">Endpoint URL (HTTPS)</label>
+        <input type="url" id="webhook-url" required placeholder="https://receiver.example.com/webhook" style="width: 100%; padding: 0.6rem; border-radius: 6px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: var(--text);">
+        <small style="color: var(--text-muted); font-size: 0.75rem;">Must be HTTPS. Private IPs and cloud metadata destinations are strictly forbidden.</small>
+      </div>
+
+      <div style="margin-bottom: 1.5rem;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.4rem;">Event Types</label>
+        <div style="max-height: 140px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem; background: rgba(0,0,0,0.2);">
+          <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; font-size: 0.85rem; cursor: pointer;">
+            <input type="checkbox" name="event_type" value="*" checked> <strong>All Events (*)</strong>
+          </label>
+          {% for et in permitted_event_types %}
+          <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; font-size: 0.85rem; cursor: pointer;">
+            <input type="checkbox" name="event_type" value="{{ et }}"> <code>{{ et }}</code>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+        <button type="button" class="btn btn-secondary" onclick="closeAddWebhookModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="btn-create-webhook">Register Endpoint</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function showBanner(message, isError = false) {
+  const b = document.getElementById("status-banner");
+  b.style.display = "block";
+  b.style.background = isError ? "rgba(239, 68, 68, 0.15)" : "rgba(34, 197, 94, 0.15)";
+  b.style.border = isError ? "1px solid rgba(239, 68, 68, 0.3)" : "1px solid rgba(34, 197, 94, 0.3)";
+  b.style.color = isError ? "#f87171" : "#4ade80";
+  b.innerText = message;
+  setTimeout(() => { b.style.display = "none"; }, 5000);
+}
+
+function showAddWebhookModal() {
+  document.getElementById("add-webhook-modal").style.display = "flex";
+}
+
+function closeAddWebhookModal() {
+  document.getElementById("add-webhook-modal").style.display = "none";
+}
+
+function copySecretToClipboard() {
+  const el = document.getElementById("secret-display-input");
+  el.select();
+  navigator.clipboard.writeText(el.value);
+  showBanner("Secret copied to clipboard!");
+}
+
+async function submitAddWebhook() {
+  const url = document.getElementById("webhook-url").value.trim();
+  const checkboxes = document.querySelectorAll('input[name="event_type"]:checked');
+  const allowed = Array.from(checkboxes).map(c => c.value);
+
+  if (allowed.length === 0) {
+    showBanner("Please select at least one event type.", true);
+    return;
+  }
+
+  const btn = document.getElementById("btn-create-webhook");
+  btn.disabled = true;
+
+  try {
+    const res = await fetch("/api/v1/events/{{ event.slug }}/webhooks/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": document.querySelector('[name=csrfmiddlewaretoken]').value,
+      },
+      body: JSON.stringify({ url: url, allowed_event_types: allowed }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      showBanner(data.detail || "Failed to create webhook endpoint.", true);
+      btn.disabled = false;
+      return;
+    }
+
+    closeAddWebhookModal();
+    // Display secret reveal box
+    document.getElementById("secret-display-input").value = data.secret;
+    document.getElementById("secret-reveal-card").style.display = "block";
+    showBanner("Webhook endpoint created! Remember to copy the secret.");
+    setTimeout(() => { window.location.reload(); }, 3500);
+  } catch (err) {
+    showBanner("Network error: " + err.message, true);
+    btn.disabled = false;
+  }
+}
+
+async function toggleEndpointStatus(endpointId, newStatus) {
+  try {
+    const res = await fetch(`/api/v1/events/{{ event.slug }}/webhooks/${endpointId}/`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": document.querySelector('[name=csrfmiddlewaretoken]').value,
+      },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    if (res.ok) {
+      window.location.reload();
+    } else {
+      const data = await res.json();
+      showBanner(data.detail || "Failed to update endpoint.", true);
+    }
+  } catch (err) {
+    showBanner(err.message, true);
+  }
+}
+
+async function deleteEndpoint(endpointId) {
+  if (!confirm("Are you sure you want to delete this webhook endpoint? All delivery records will be permanently removed.")) {
+    return;
+  }
+  try {
+    const res = await fetch(`/api/v1/events/{{ event.slug }}/webhooks/${endpointId}/`, {
+      method: "DELETE",
+      headers: {
+        "X-CSRFToken": document.querySelector('[name=csrfmiddlewaretoken]').value,
+      },
+    });
+    if (res.ok) {
+      window.location.reload();
+    } else {
+      const data = await res.json();
+      showBanner(data.detail || "Failed to delete endpoint.", true);
+    }
+  } catch (err) {
+    showBanner(err.message, true);
+  }
+}
+
+async function replayDelivery(deliveryId) {
+  try {
+    const res = await fetch(`/api/v1/events/{{ event.slug }}/webhooks/deliveries/${deliveryId}/replay/`, {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": document.querySelector('[name=csrfmiddlewaretoken]').value,
+      },
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showBanner(`Delivery replay scheduled (Gen ${data.replay_generation})!`);
+      setTimeout(() => { window.location.reload(); }, 1000);
+    } else {
+      showBanner(data.detail || "Failed to schedule replay.", true);
+    }
+  } catch (err) {
+    showBanner(err.message, true);
+  }
+}
+</script>
+{% endblock %}

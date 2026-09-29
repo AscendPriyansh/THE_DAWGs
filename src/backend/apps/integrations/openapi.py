@@ -276,6 +276,132 @@ def get_openapi_schema() -> dict:
                     "responses": {"200": {"description": "API key revoked"}},
                 }
             },
+            "/api/v1/events/{slug}/webhooks/": {
+                "get": {
+                    "summary": "List event webhook endpoints",
+                    "tags": ["Webhooks"],
+                    "parameters": [{"name": "slug", "in": "path", "required": True, "schema": {"type": "string"}}],
+                    "responses": {"200": {"description": "Array of registered webhook endpoints without secrets"}},
+                },
+                "post": {
+                    "summary": "Register a new webhook endpoint",
+                    "tags": ["Webhooks"],
+                    "parameters": [{"name": "slug", "in": "path", "required": True, "schema": {"type": "string"}}],
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "url": {"type": "string", "format": "uri"},
+                                        "allowed_event_types": {"type": "array", "items": {"type": "string"}},
+                                    },
+                                    "required": ["url"],
+                                }
+                            }
+                        },
+                    },
+                    "responses": {
+                        "201": {"description": "Endpoint registered. High-entropy shared signing secret returned once."},
+                        "400": {"description": "Invalid URL, SSRF failure, or forbidden port"},
+                    },
+                },
+            },
+            "/api/v1/events/{slug}/webhooks/{id}/": {
+                "get": {
+                    "summary": "Retrieve webhook endpoint details",
+                    "tags": ["Webhooks"],
+                    "parameters": [
+                        {"name": "slug", "in": "path", "required": True, "schema": {"type": "string"}},
+                        {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+                    ],
+                    "responses": {"200": {"description": "Endpoint details"}},
+                },
+                "patch": {
+                    "summary": "Update webhook endpoint URL, subscriptions, or status (ACTIVE/PAUSED)",
+                    "tags": ["Webhooks"],
+                    "parameters": [
+                        {"name": "slug", "in": "path", "required": True, "schema": {"type": "string"}},
+                        {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+                    ],
+                    "responses": {"200": {"description": "Endpoint updated"}},
+                },
+                "delete": {
+                    "summary": "Delete webhook endpoint and associated deliveries",
+                    "tags": ["Webhooks"],
+                    "parameters": [
+                        {"name": "slug", "in": "path", "required": True, "schema": {"type": "string"}},
+                        {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+                    ],
+                    "responses": {"200": {"description": "Endpoint deleted"}},
+                },
+            },
+            "/api/v1/events/{slug}/webhooks/{id}/deliveries/": {
+                "get": {
+                    "summary": "List delivery attempts for an endpoint",
+                    "tags": ["Webhooks"],
+                    "parameters": [
+                        {"name": "slug", "in": "path", "required": True, "schema": {"type": "string"}},
+                        {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+                    ],
+                    "responses": {"200": {"description": "List of webhook deliveries"}},
+                }
+            },
+            "/api/v1/events/{slug}/webhooks/deliveries/{delivery_id}/replay/": {
+                "post": {
+                    "summary": "Replay a failed or dead webhook delivery",
+                    "tags": ["Webhooks"],
+                    "parameters": [
+                        {"name": "slug", "in": "path", "required": True, "schema": {"type": "string"}},
+                        {"name": "delivery_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+                    ],
+                    "responses": {"200": {"description": "Replay scheduled with incremented generation"}},
+                }
+            },
+            "/api/v1/events/{slug}/jobs/": {
+                "get": {
+                    "summary": "List background jobs for event",
+                    "tags": ["Background Jobs"],
+                    "parameters": [{"name": "slug", "in": "path", "required": True, "schema": {"type": "string"}}],
+                    "responses": {"200": {"description": "List of background jobs"}},
+                },
+                "post": {
+                    "summary": "Enqueue a shared background job",
+                    "tags": ["Background Jobs"],
+                    "parameters": [{"name": "slug", "in": "path", "required": True, "schema": {"type": "string"}}],
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "kind": {"type": "string", "enum": ["GENERATE_CERTIFICATES", "EXPORT_EVENT", "VALIDATE_IMPORT", "APPLY_IMPORT"]},
+                                        "parameters": {"type": "object"},
+                                    },
+                                    "required": ["kind"],
+                                }
+                            }
+                        },
+                    },
+                    "responses": {
+                        "202": {"description": "Job accepted and enqueued"},
+                        "403": {"description": "Insufficient authority for job kind"},
+                    },
+                },
+            },
+            "/api/v1/events/{slug}/jobs/{id}/": {
+                "get": {
+                    "summary": "Inspect background job progress and output",
+                    "tags": ["Background Jobs"],
+                    "parameters": [
+                        {"name": "slug", "in": "path", "required": True, "schema": {"type": "string"}},
+                        {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+                    ],
+                    "responses": {"200": {"description": "Job execution status and result keys"}},
+                }
+            },
         },
         "components": {
             "securitySchemes": {

@@ -2,8 +2,7 @@
 dockerfilePath = "deploy/Dockerfile.app"
 
 [deploy]
-startCommand = "sh -c 'python src/backend/manage.py migrate && python src/backend/manage.py seed_demo --output-toml && gunicorn --bind 0.0.0.0:$PORT --workers 3 --chdir src/backend config.wsgi:application'"
 healthcheckPath = "/health/"
-healthcheckTimeout = 60
+healthcheckTimeout = 120
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3

@@ -1,4 +1,6 @@
 import os
+import hashlib
+import base64
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -10,6 +12,9 @@ SECRET_KEY = os.environ.get(
 DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() in ("true", "1", "yes")
 
 ALLOWED_HOSTS = ["*"]
+CSRF_TRUSTED_ORIGINS = [
+    h for h in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if h.strip()
+]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -35,6 +40,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -64,17 +70,34 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
-# Database: PostgreSQL
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("POSTGRES_DB", "dogfood"),
-        "USER": os.environ.get("POSTGRES_USER", "dogfood"),
-        "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "dogfood"),
-        "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
-        "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+# ── Database ──────────────────────────────────────────────────────────────────
+# Support both Railway-style DATABASE_URL and individual env vars
+_database_url = os.environ.get("DATABASE_URL", "")
+if _database_url:
+    # Parse DATABASE_URL: postgres://user:pass@host:port/dbname
+    import urllib.parse
+    _parsed = urllib.parse.urlparse(_database_url)
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": _parsed.path.lstrip("/"),
+            "USER": _parsed.username,
+            "PASSWORD": _parsed.password,
+            "HOST": _parsed.hostname,
+            "PORT": str(_parsed.port or 5432),
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ.get("POSTGRES_DB", "dogfood"),
+            "USER": os.environ.get("POSTGRES_USER", "dogfood"),
+            "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "dogfood"),
+            "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
+            "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+        }
+    }
 
 AUTH_USER_MODEL = "accounts.User"
 
@@ -93,11 +116,15 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "/static/"
-STATICFILES_DIRS = [BASE_DIR / "static"]
+# Only add STATICFILES_DIRS if the directory actually exists (avoids errors on fresh containers)
+_static_dir = BASE_DIR / "static"
+if _static_dir.exists():
+    STATICFILES_DIRS = [_static_dir]
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = os.environ.get("MEDIA_ROOT", str(BASE_DIR / "media"))
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -114,17 +141,12 @@ REST_FRAMEWORK = {
     ],
 }
 
-# Webhook & Worker Configuration (M08)
-import hashlib
-import base64
-
+# ── Webhook & Worker Configuration ────────────────────────────────────────────
 WEBHOOK_ENCRYPTION_KEY = os.environ.get("DOGFOOD_WEBHOOK_ENCRYPTION_KEY")
 if not WEBHOOK_ENCRYPTION_KEY:
-    # Derive a stable 32-byte urlsafe base64 key from SECRET_KEY
     _digest = hashlib.sha256(f"webhook-secret-salt:{SECRET_KEY}".encode("utf-8")).digest()
     WEBHOOK_ENCRYPTION_KEY = base64.urlsafe_b64encode(_digest).decode("ascii")
 
-# Allowed webhook hosts for local/offline testing or demo receivers
 _raw_allowed_hosts = os.environ.get("DOGFOOD_ALLOWED_WEBHOOK_HOSTS", "testserver,localhost,127.0.0.1")
 DOGFOOD_ALLOWED_WEBHOOK_HOSTS = [h.strip() for h in _raw_allowed_hosts.split(",") if h.strip()]
 
